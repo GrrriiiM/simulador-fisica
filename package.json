@@ -1,0 +1,24 @@
+{
+  "name": "simulador-fisica",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "serve": "^11.3.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "serve src"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GrrriiiM/simulador-fisica.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/GrrriiiM/simulador-fisica/issues"
+  },
+  "homepage": "https://github.com/GrrriiiM/simulador-fisica#readme"
+}
