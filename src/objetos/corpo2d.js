@@ -1,12 +1,66 @@
+import { Vetor2d } from "./vetor2d.js";
+
 export class Corpo2d {
+
+    static rocha() { return { densidade: 0.6, restituicao: 0.1 }; }
+    static madeira() { return { densidade: 0.3, restituicao: 0.2 }; }
+    static metal() { return { densidade: 1.2, restituicao: 0.05 }; }
+    static borracha() { return { densidade: 0.3, restituicao: 0.8 }; }
+    static super() { return { densidade: 0.3, restituicao: 0.95 }; }
+    static almofada() { return { densidade: 0.1, restituicao: 0.2 }; }
+    static estatico() { return { densidade: 0, restituicao: 0.4 }; }
+
     static criar(posV, forma, op) {
         let corpo = new Corpo2d();
-        Object.assign(corpo, op);
         corpo.posV = posV;
         corpo.forma = forma;
         forma.corpo = corpo;
         corpo.orient = 0;
+        corpo.estatico = false;
+        corpo.densidade = 0.5;
+        corpo.restituicao = 0.1;
+        Object.assign(corpo, op);
+        
+        corpo.calcularMassa()
         return corpo;
+    }
+
+    calcularMassa() {
+        let massa = 0;
+        let inercia = 0;
+        let area = 0
+        let k = 1/3;
+        let centro = Vetor2d.criarPos(0, 0);
+        for(let i = 0; i< this.forma.vsQtd; i++) {
+            let v1 = this.forma.vs[i];
+            let v2 = this.forma.vs[(i+1)%this.forma.vsQtd];
+            let d = v1.pVet(v2);
+            let a = d / 2;
+            area += a;
+            let peso = a * k;
+            centro = centro.adic(v1.mult(peso))
+                .adic(v2.mult(peso));
+        
+            let x = v1.x * v1.x + v2.x * v1.x + v2.x * v2.x;
+            let y = v1.y * v1.y + v2.y * v1.y + v2.y * v2.y;
+            inercia += (0.25 * k * d) * (x+y);
+        }
+
+        centro = centro.mult(1/area);
+
+        for (let i = 0; i < this.forma.vsQtd; ++i) {
+            let v = this.forma.vs[i];
+            this.forma.vs[i] = v.sub(centro);
+        }
+
+        this.forma.area[0] = this.forma.area[0].sub(centro);
+        this.forma.area[1] = this.forma.area[1].sub(centro);
+
+        this.massa = this.densidade * area;
+        this.massaInv = (this.massa != 0) ? 1 / this.massa : 0;
+        this.inercia = inercia * this.densidade;
+        this.inerciaInv = (this.inercia != 0) ? 1 / this.inercia : 0;
+
     }
 
     pos(x, y) {

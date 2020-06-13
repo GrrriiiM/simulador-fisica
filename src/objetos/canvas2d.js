@@ -121,6 +121,19 @@ export class Canvas2d {
         ctx.restore();
     }
 
+    ponto(x, y, r, c) {
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.arc(x, y, r || 5, 0, 2 * Math.PI, true);
+        this.ctx.fillStyle = c || "white";
+        this.ctx.fill();
+        this.ctx.restore();
+    }
+
+    pontos(ps) {
+        ps.forEach(_ => this.ponto(_.x, _.y, _.r, _.c))
+    }
+
     log(t) {
         this.ctx.font = "18px Arial";
         this.ctx.fillStyle = "#FFFFFF";

@@ -141,15 +141,6 @@ export class Poligono2d extends Forma2d {
         } 
         ctx.restore();
 
-        for(let corV of corVs) {
-            let v = this.vs[corV.i].adic(pos);
-            ctx.beginPath();
-            ctx.arc(v.x, v.y, 10, 0, 2 * Math.PI, true);
-            ctx.fillStyle = corV.cor;
-            ctx.fill();
-        }
-
-        ctx.restore();
     }
 
     desenharArea(pos, c) {
