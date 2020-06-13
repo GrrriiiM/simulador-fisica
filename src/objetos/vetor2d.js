@@ -1,3 +1,5 @@
+import { Matriz2d } from "./matriz2d.js";
+
 export class Vetor2d {
     static criarPos(x, y) {
         let v = new Vetor2d();
@@ -13,6 +15,17 @@ export class Vetor2d {
         let x = c * magnitude;
         let y = s * magnitude;
         return this.criarPos(x, y);
+    }
+
+    static criarAngRandom(magMax, magMin) {
+        let _magMin = magMin || 0; 
+        let ang = Math.ceil(Math.random() * 360)
+        let mag = Math.ceil(Math.random() * (magMax - _magMin)) + _magMin;
+        return this.criarAng(ang, mag);
+    }
+
+    static criarRandom(maxX, maxY) {
+        return this.criarPos(Math.ceil(Math.random()*maxX), Math.ceil(Math.random()*maxY));
     }
 
     static criarVec(v) {
@@ -59,11 +72,29 @@ export class Vetor2d {
 
     static mult(v1, n) {
         let v = v1.copia;
-        v.x *= n;
-        v.y *= n;
+        if (n instanceof Vetor2d) {
+            v.x *= n.x;
+            v.y *= n.y;
+        } else if (n instanceof Matriz2d) {
+            let x = n.m00 * v.x + n.m01 * v.y;
+            let y = n.m10 * v.x + n.m11 * v.y;
+            v.x = x;
+		    v.y = y;
+        } else {
+            v.x *= n;
+            v.y *= n;
+        }
         return v;
     }
     mult(n) { return Vetor2d.mult(this, n); }
+
+    static div(v1, n) {
+        let v = v1.copia;
+        v.x /= n;
+        v.y /= n;
+        return v;
+    }
+    div(n) { return Vetor2d.div(this, n); }
 
     static sub(v1, v2) {
         let v = v1.copia;
@@ -131,4 +162,15 @@ export class Vetor2d {
         return this.criarVec(v1.y * n, - v1.x * -n);
     }
     pVet2(n) { return Vetor2d.pVet2(this, n); }
+
+    static area(v1, v2) {
+        return this.pVet(v1, v2) / 2;
+    }
+    area(v) { return Vetor2d.area(this, v); }
+
+    static perp(v) {
+        return this.criarPos(v.y, -v.x);
+    }
+    get perp() { return Vetor2d.perp(this); }
+
 }
