@@ -12,6 +12,8 @@ export class Canvas2d {
         canvas.addEventListener("mousemove", (ev) => c._mouseMove(ev));
         canvas.addEventListener("mousedown", (ev) => c._mouseDown(ev));
         canvas.addEventListener("mouseup", (ev) => c._mouseUp(ev));
+        document.addEventListener("keydown", (ev) => c._keyDown(ev));
+        document.addEventListener("keyup", (ev) => c._keyUp(ev));
         element.appendChild(canvas);
         return c;
     }
@@ -40,6 +42,14 @@ export class Canvas2d {
     _mouseUp() {
         this.mousePressionado = false;
         this.mouseUp(this);
+    }
+
+    _keyDown(ev) {
+        this.shiftPressionado = ev.shiftKey;
+    }
+
+    _keyUp(ev) {
+        this.shiftPressionado = ev.shiftKey;
     }
 
     mouseUp() {

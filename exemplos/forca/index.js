@@ -29,10 +29,10 @@ for(let i=0;i<10;i++) {
 
 mundo.adic(Vetor2d.criarPos(-40, canvas.h/2), Poligono2d.criar([[0, 0], [100,0], [0, canvas.h], [100, canvas.h]]), Corpo2d.estatico());
 mundo.adic(Vetor2d.criarPos(canvas.w+40, canvas.h/2), Poligono2d.criar([[0, 0], [100,0], [0, canvas.h], [100, canvas.h]]), Corpo2d.estatico());
-mundo.adic(Vetor2d.criarPos(canvas.w/2, canvas.h-100), Poligono2d.criar([[0, 0], [0,100], [canvas.w-25, 0], [canvas.w-25, 100]]), Corpo2d.estatico());
+mundo.adic(Vetor2d.criarPos(canvas.w/2, canvas.h+40), Poligono2d.criar([[0, 0], [0,100], [canvas.w-25, 0], [canvas.w-25, 100]]), Corpo2d.estatico());
 
-mundo.adic(Vetor2d.criarPos(170, (canvas.h/2)+ 100), Poligono2d.criar([[0, 0], [500,500], [0, 500]]), Object.assign(Corpo2d.estatico(), { corrigirDeslocamento: false }));
-mundo.adic(Vetor2d.criarPos(canvas.w - 170, (canvas.h/2)+ 100), Poligono2d.criar([[0, 0], [-500,500], [0, 500]]), Object.assign(Corpo2d.estatico(), { corrigirDeslocamento: false }));
+mundo.adic(Vetor2d.criarPos(176, (canvas.h/2)+ 200), Poligono2d.criar([[0, 0], [500,500], [0, 500]]), Object.assign(Corpo2d.estatico(), { corrigirDeslocamento: false }));
+mundo.adic(Vetor2d.criarPos(canvas.w - 176, (canvas.h/2)+ 200), Poligono2d.criar([[0, 0], [-500,500], [0, 500]]), Object.assign(Corpo2d.estatico(), { corrigirDeslocamento: false }));
 
 
 
@@ -49,5 +49,10 @@ canvas.loop = (c) => {
 }
 
 canvas.mouseUp = (c) => {
-    mundo.adic(Vetor2d.criarPos(c.mouseX, c.mouseY), Poligono2d.criarRandom(50, 3, 100, 200), Corpo2d.elastico());
+    if (c.shiftPressionado) {
+        mundo.adic(Vetor2d.criarPos(c.mouseX, c.mouseY), Poligono2d.criar(circulo), Corpo2d.elastico());
+    } else {
+        mundo.adic(Vetor2d.criarPos(c.mouseX, c.mouseY), Poligono2d.criarRandom(50, 3, 100, 200), Corpo2d.elastico());
+    }
+    
 }
