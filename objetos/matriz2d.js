@@ -1,7 +1,11 @@
 export class Matriz2d {
 
 	static criarAng(a) {
-        let r = a / (Math.PI/180);
+        let r = a * (Math.PI/180);
+		return this.criarRad(r);
+    }
+
+    static criarRad(r) {
 		const c = Math.cos(r);
         const s = Math.sin(r);
         return this.criarPos(c, -s, s, c)
@@ -13,7 +17,9 @@ export class Matriz2d {
 		m2.m00 = m00;
 		m2.m01 = m01;
 		m2.m10 = m10;
-		m2.m11 = m11;
+        m2.m11 = m11;
+        
+        return m2;
     }
 
     constructor() {
@@ -24,7 +30,7 @@ export class Matriz2d {
     }
 
     get copia() {
-        return Matriz2d(this.m00, this.m01, this.m10, this.m11);
+        return Matriz2d.criarPos(this.m00, this.m01, this.m10, this.m11);
     }
 
     static abs(m) {
@@ -51,7 +57,7 @@ export class Matriz2d {
         m1.m10 = m.m01;
         return m1;
     }
-    transp() { return Matriz2d.transp(this); }
+    get transp() { return Matriz2d.transp(this); }
 
     static mult(m1, m2) {
         let m = m1.copia;

@@ -1,3 +1,5 @@
+import { Matriz2d } from "./matriz2d.js";
+
 export class Vetor2d {
     static criarPos(x, y) {
         let v = new Vetor2d();
@@ -13,6 +15,17 @@ export class Vetor2d {
         let x = c * magnitude;
         let y = s * magnitude;
         return this.criarPos(x, y);
+    }
+
+    static criarAngRandom(magMax, magMin) {
+        let _magMin = magMin || 0; 
+        let ang = Math.ceil(Math.random() * 360)
+        let mag = Math.ceil(Math.random() * (magMax - _magMin)) + _magMin;
+        return this.criarAng(ang, mag);
+    }
+
+    static criarRandom(maxX, maxY) {
+        return this.criarPos(Math.ceil(Math.random()*maxX), Math.ceil(Math.random()*maxY));
     }
 
     static criarVec(v) {
@@ -44,6 +57,7 @@ export class Vetor2d {
     static norm(v, n) {
         n = n || 1;
         let m = v.mag;
+        if (m == 0) return this.criarPos(0, 0);
         return this.criarPos(v.x/m, v.y/m).mult(n);
     }
     norm(n) { return Vetor2d.norm(this, n); }
@@ -59,11 +73,29 @@ export class Vetor2d {
 
     static mult(v1, n) {
         let v = v1.copia;
-        v.x *= n;
-        v.y *= n;
+        if (n instanceof Vetor2d) {
+            v.x *= n.x;
+            v.y *= n.y;
+        } else if (n instanceof Matriz2d) {
+            let x = n.m00 * v.x + n.m01 * v.y;
+            let y = n.m10 * v.x + n.m11 * v.y;
+            v.x = x;
+		    v.y = y;
+        } else {
+            v.x *= n;
+            v.y *= n;
+        }
         return v;
     }
     mult(n) { return Vetor2d.mult(this, n); }
+
+    static div(v1, n) {
+        let v = v1.copia;
+        v.x /= n;
+        v.y /= n;
+        return v;
+    }
+    div(n) { return Vetor2d.div(this, n); }
 
     static sub(v1, v2) {
         let v = v1.copia;
@@ -122,8 +154,15 @@ export class Vetor2d {
     }
     rotG(g) { return Vetor2d.rotG(this, g); }
 
-    static pVet(v1, v2) {
-        return v1.x * v2.y - v1.y * v2.x;
+    static pVet(v1, n) {
+        if (n instanceof Vetor2d) {
+            return v1.x * n.y - v1.y * n.x;
+        } else {
+            let v = v1.copia;
+            v.x = v1.y * n;
+            v.y = v1.x * -n;
+            return v;    
+        }
     }
     pVet(v) { return Vetor2d.pVet(this, v); }
 
@@ -131,4 +170,24 @@ export class Vetor2d {
         return this.criarVec(v1.y * n, - v1.x * -n);
     }
     pVet2(n) { return Vetor2d.pVet2(this, n); }
+
+    static area(v1, v2) {
+        return this.pVet(v1, v2) / 2;
+    }
+    area(v) { return Vetor2d.area(this, v); }
+
+    static perp(v) {
+        return this.criarPos(v.y, -v.x);
+    }
+    get perp() { return Vetor2d.perp(this); }
+
+    static limit(v, n) {
+        let mag = this.mag(v);
+        if (mag > n) {
+            return v.norm(n);
+        }
+        return v.copia;
+    }
+    limit(n) { return Vetor2d.limit(this, n); }
+
 }

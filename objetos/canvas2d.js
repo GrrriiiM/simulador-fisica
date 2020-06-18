@@ -9,6 +9,9 @@ export class Canvas2d {
         c.ctx = canvas.getContext("2d");
         canvas.height = c.h;
         canvas.width = c.w;
+        canvas.addEventListener("mousemove", (ev) => c._mouseMove(ev));
+        canvas.addEventListener("mousedown", (ev) => c._mouseDown(ev));
+        canvas.addEventListener("mouseup", (ev) => c._mouseUp(ev));
         element.appendChild(canvas);
         return c;
     }
@@ -20,9 +23,30 @@ export class Canvas2d {
         this.bc = "#000000";
         this.fps = 28;
         this.animando = false;
+        this.mouseX = 0;
+        this.mouseY = 0;
+        this.mousePressionado = false;
     }
 
-    _desenhar(delta) {
+    _mouseMove(ev) {
+        this.mouseX = ev.pageX;
+        this.mouseY = ev.pageY;
+    }
+
+    _mouseDown() {
+        this.mousePressionado = true;
+    }
+
+    _mouseUp() {
+        this.mousePressionado = false;
+        this.mouseUp(this);
+    }
+
+    mouseUp() {
+
+    }
+
+    _loop(delta) {
         this.ctx.fillStyle = this.bc;
         this.ctx.fillRect(0, 0, this.w, this.h);
         
@@ -32,13 +56,13 @@ export class Canvas2d {
         let fpsMeasureText = this.ctx.measureText(fpsText).width;
         this.ctx.fillText(fpsText, this.w - fpsMeasureText, this.h - 10);
         
-        if (this.desenhar) this.desenhar(this, delta);
+        if (this.loop) this.loop(this, delta);
     }
 
     async frame(delta) {
-        let desenhar = new Promise((resolve) => {
+        let loop = new Promise((resolve) => {
             setTimeout(() => {
-                this._desenhar(delta);
+                this._loop(delta);
                 resolve();
             }, 1);
         });
@@ -49,19 +73,19 @@ export class Canvas2d {
         });
 
         let inicio = Date.now();
-        await Promise.all([desenhar, frame]);
+        await Promise.all([loop, frame]);
         let fim = Date.now();
 
         let t = fim-inicio;
         return t;
     }
 
-    iniciarAnimacao(delta) {
+    iniciarLoop(delta) {
         delta = delta || 1000/this.fps;
         this.animando = true;
         setTimeout(async () => {
             delta = await this.frame(delta);
-            this.iniciarAnimacao(delta);
+            this.iniciarLoop(delta);
         }, 1);
     }
 
@@ -84,7 +108,8 @@ export class Canvas2d {
             c: "#FFFFFF",
             l: 1
         }
-        Object.keys(op).forEach(_ => o[_]=op[_]);
+        ctx.save();
+        Object.assign(o, op);
         ctx.beginPath();
         ctx.strokeStyle = o.c;
         ctx.lineWidth = o.l;
@@ -93,5 +118,25 @@ export class Canvas2d {
             ctx.lineTo(v.x, v.y);
         }
         ctx.stroke();
+        ctx.restore();
+    }
+
+    ponto(x, y, r, c) {
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.arc(x, y, r || 5, 0, 2 * Math.PI, true);
+        this.ctx.fillStyle = c || "white";
+        this.ctx.fill();
+        this.ctx.restore();
+    }
+
+    pontos(ps) {
+        ps.forEach(_ => this.ponto(_.x, _.y, _.r, _.c))
+    }
+
+    log(t) {
+        this.ctx.font = "18px Arial";
+        this.ctx.fillStyle = "#FFFFFF";
+        this.ctx.fillText(t, 10, 20);
     }
 }
