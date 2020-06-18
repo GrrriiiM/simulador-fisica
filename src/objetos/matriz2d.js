@@ -1,7 +1,7 @@
 export class Matriz2d {
 
 	static criarAng(a) {
-        let r = a / (Math.PI/180);
+        let r = a * (Math.PI/180);
 		return this.criarRad(r);
     }
 

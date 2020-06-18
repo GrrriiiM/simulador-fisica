@@ -109,7 +109,7 @@ export class Poligono2d extends Forma2d {
         ctx.save();
         ctx.beginPath();
         for(let i in this.vs) {
-            let v = this.vs[i].adic(pos);
+            let v = this.vs[i].mult(this.u).adic(pos);
             if (i == 0)
                 ctx.moveTo(v.x, v.y);
             else

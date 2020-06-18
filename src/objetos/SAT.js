@@ -1,5 +1,6 @@
 export class SAT {
     static calcular(forma1, forma2) {
+
         let dist = -Number.MAX_VALUE;
         let indexV = 0;
 
@@ -25,9 +26,9 @@ export class SAT {
 
 
             let vm = v1.mult(forma1.u);
-            vm = vm.mult(forma2.u.transp);
             vm = vm.adic(forma1.corpo.posV);
             vm = vm.sub(forma2.corpo.posV);
+            vm = vm.mult(forma2.u.transp);
 
             let d = n.pEsc(v2.sub(vm));
 
@@ -42,6 +43,7 @@ export class SAT {
             indexV: indexV,
             v: forma1.vs[indexV]
         };
+
     }
 
     // static calcMinMax(n, vs) {

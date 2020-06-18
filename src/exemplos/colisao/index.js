@@ -3,7 +3,7 @@ import { Vetor2d } from "../../objetos/vetor2d.js";
 import { Forma2d } from "../../objetos/forma2d.js";
 import { Poligono2d } from "../../objetos/poligono2d.js";
 import { Corpo2d } from "../../objetos/corpo2d.js"
-import { SAT } from "../../objetos/SAT.js";
+import { Mundo2d } from "../../objetos/mundo2d.js";
 import { Colisao2d } from "../../objetos/colisao2d.js";
 
 let canvas = Canvas2d.criar({
@@ -11,26 +11,45 @@ let canvas = Canvas2d.criar({
     h: window.innerHeight
 });
 
-// let corpo1 = Corpo2d.criar(Vetor2d.criarRandom(canvas.w, canvas.h), Poligono2d.criarRandom(50, 5, 100))
-// let corpo2 = Corpo2d.criar(Vetor2d.criarPos(canvas.w/2, canvas.h/2), Poligono2d.criarRandom(50, 5, 100))
+let mundo = Mundo2d.criar(0, 0, canvas.w, canvas.h);
 
-let corpo1 = Corpo2d.criar(Vetor2d.criarRandom(canvas.w, canvas.h), Poligono2d.criar([ [0,0],[200,0],[100,-150] ], Corpo2d.estatico()));
-// let corpo1 = Corpo2d.criar(Vetor2d.criarRandom(canvas.w, canvas.h), Poligono2d.criar([ [0,0],[200,0],[200,200],[0,200] ]));
-// let corpo2 = Corpo2d.criar(Vetor2d.criarPos(canvas.w/2, canvas.h/2), Poligono2d.criar([ [0,0],[200,0],[100,-150] ]));
-let corpo2 = Corpo2d.criar(Vetor2d.criarPos(canvas.w/2, canvas.h/2), Poligono2d.criar([ [0,0],[200,0],[200,200],[0,200] ], Corpo2d.borracha()));
+let quadrado = [[0,0],[200,0],[200,200],[0,200]];
+let triangulo = [ [0,0],[200,0],[100,-150] ];
+let l = [];
+for(let i=0;i<36;i++) l.push(i);
+let circulo = l.map(_ => Vetor2d.criarAng(_*10, 100));
+let poligono = Poligono2d.criarRandom(50, 5, 100).vs;
+
+// let corpo1 = mundo.adic(Vetor2d.criarRandom(canvas.w, canvas.h), Poligono2d.criarRandom(50, 5, 100), Corpo2d.estatico())
+// mundo.adic(Vetor2d.criarPos(canvas.w/2, canvas.h/2), Poligono2d.criarRandom(50, 5, 100), Corpo2d.borracha())
+
+// mundo.adic(Vetor2d.criarRandom(canvas.w, canvas.h), Poligono2d.criar([ [0,0],[200,0],[100,-150] ], Corpo2d.metal()));
+// mundo.adic(Vetor2d.criarRandom(canvas.w, canvas.h), Poligono2d.criar([ [0,0],[200,0],[200,200],[0,200]], Corpo2d.rocha()));
+// mundo.adic(Vetor2d.criarRandom(canvas.w, canvas.h), Poligono2d.criar([ [0,0],[200,0],[100,-150]], Corpo2d.elastico()));
+// mundo.adic(Vetor2d.criarRandom(canvas.w, canvas.h), Poligono2d.criar([ [0,0],[200,0],[200,200],[0,200] ], Corpo2d.madeira()));
+
+let forma = poligono;
+
+let corpo1 = mundo.adic(Vetor2d.criarRandom(canvas.w, canvas.h), Poligono2d.criar(forma, Corpo2d.rocha()));
+
+mundo.adic(Vetor2d.criarRandom(canvas.w, canvas.h), Poligono2d.criar(forma, Corpo2d.rocha()));
+
+
+mundo.adic(Vetor2d.criarPos(-40, canvas.h/2), Poligono2d.criar([[0, 0], [100,0], [0, canvas.h], [100, canvas.h]]), Corpo2d.estatico());
+mundo.adic(Vetor2d.criarPos(canvas.w+40, canvas.h/2), Poligono2d.criar([[0, 0], [100,0], [0, canvas.h], [100, canvas.h]]), Corpo2d.estatico());
+mundo.adic(Vetor2d.criarPos(canvas.w/2, canvas.h+40), Poligono2d.criar([[0, 0], [0,100], [canvas.w-25, 0], [canvas.w-25, 100]]), Corpo2d.estatico());
+
 canvas.iniciarLoop();
 canvas.loop = (c) => {
-    let op1 = { desenharArea: true, desenharNormas: true };
-    let op2 = { desenharArea: true, desenharNormas: true };
+    let op = { desenharArea: true, desenharNormas: true };
     corpo1.pos(c.mouseX, c.mouseY);
 
-    let colisao = Colisao2d.calcular(corpo1.forma, corpo2.forma);
-    if (colisao.contatos.length) {
-        op1.corL = "blue";
-        op2.corL = "blue";
+    mundo.frame();
+
+    for(let colisao of mundo.colisoes) {
+        op.corL = "blue";
         c.pontos(colisao.contatos);
     }
 
-    corpo1.desenhar(c, op1);
-    corpo2.desenhar(c, op2);
+    mundo.desenhar(c, op);
 }
