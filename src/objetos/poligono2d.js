@@ -11,7 +11,7 @@ export class Poligono2d extends Forma2d {
     static criar(vertices, op) {
         let p = new Poligono2d();
         Object.assign(p, op);
-        p.montar(vertices.map(_ => {
+        p._montar(vertices.map(_ => {
             if (_ instanceof Vetor2d) return _;
             else if(_ instanceof Array) return Vetor2d.criarPos(_[0], _[1]);
         }));
@@ -27,6 +27,31 @@ export class Poligono2d extends Forma2d {
         return Poligono2d.criar(vs, op);
     }
 
+    static criarCirculo(r, op) {
+        let faces = 36;
+        let vs = []
+        for(let i = 0; i < faces; i++) {
+            vs.push(Vetor2d.criarAng(i*(360/faces), r));
+        }
+        return Poligono2d.criar(vs, op);
+    }
+
+    static criarQuadrado(l, op) {
+        return Poligono2d.criar([[0,0], [l,0], [0,l], [l,l]], op);
+    }
+
+    static criarRetangulo(l1, l2, op) {
+        return Poligono2d.criar([[0,0], [l1,0], [0,l2], [l1,l2]], op);
+    }
+
+    static criarTrianguloReto(l1, l2, op) {
+        return Poligono2d.criar([[0,0], [0,l2], [l1,l2]], op);
+    }
+
+    static criarTrianguloEquilatero(l, op) {
+        return Poligono2d.criar([[0,0], [l,0], Vetor2d.criarAng(300,l)], op);
+    }
+
     constructor() {
         super();
         this.vs = [];
@@ -35,7 +60,7 @@ export class Poligono2d extends Forma2d {
         this.corrigirDeslocamento = true;
     }
 
-    montar(vertices) {
+    _montar(vertices) {
         if (vertices.length < 3) return;
         let verticeDireita = vertices.reduce((p,c) => {
             if (!p || c.x > p.x) return c;
@@ -79,18 +104,64 @@ export class Poligono2d extends Forma2d {
         let minV = Vetor2d.criarPos(Math.min(...this.vs.map(_ => _.x)), Math.min(...this.vs.map(_ => _.y)));
         let maxV = Vetor2d.criarPos(Math.max(...this.vs.map(_ => _.x)), Math.max(...this.vs.map(_ => _.y)));
 
-        if (this.corrigirDeslocamento) {
-            let deslocamento = maxV.sub(minV).div(2).adic(minV);
+        let deslocamento = maxV.sub(minV).div(2).adic(minV);
 
-            for(let i in this.vs) {
-                this.vs[i] = this.vs[i].sub(deslocamento);
-            }
-    
-            this.area = [ minV.sub(deslocamento), maxV.sub(deslocamento) ];
-        } else {
-            this.area = [ minV, maxV ];
+        for(let i in this.vs) {
+            this.vs[i] = this.vs[i].sub(deslocamento);
         }
 
+        
+    }
+
+    _calcularBordas() {
+        this.min = Vetor2d.criar(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+        this.max = Vetor2d.criar(Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY);
+        for(let v of this.vs) {
+            if (v.x<this.min.x) this.min.x = v.x;
+            if (v.x>this.max.x) this.max.x = v.x;
+            if (v.y<this.min.y) this.min.y = v.y;
+            if (v.y>this.max.y) this.max.y = v.y;
+        }
+    }
+
+    set orient(a) {
+        super.orient = a;
+        this._calcularBordas();
+    }
+
+    get orient() { return super.orient; }
+
+    _calcularMassa() {
+        let inercia = 0;
+        let area = 0
+        let k = 1/3;
+        let centro = Vetor2d.criarPos(0, 0);
+        for(let i = 0; i< this.vsQtd; i++) {
+            let v1 = this.vs[i];
+            let v2 = this.vs[(i+1)%this.vsQtd];
+            let d = v1.pVet(v2);
+            let a = d / 2;
+            area += a;
+            let peso = a * k;
+            centro = centro.adic(v1.mult(peso))
+                .adic(v2.mult(peso));
+        
+            let x = v1.x * v1.x + v2.x * v1.x + v2.x * v2.x;
+            let y = v1.y * v1.y + v2.y * v1.y + v2.y * v2.y;
+            inercia += (0.25 * k * d) * (x+y);
+        }
+
+        centro = centro.mult(1/area);
+
+        for (let i = 0; i < this.vsQtd; ++i) {
+            let v = this.vs[i];
+            this.vs[i] = v.sub(centro);
+        }
+
+        this.corpo.massa = this.corpo.densidade * area;
+        this.corpo.massaInv = (this.corpo.massa != 0) ? 1 / this.corpo.massa : 0;
+        this.corpo.inercia = inercia * this.corpo.densidade;
+        this.corpo.inerciaInv = (this.corpo.inercia != 0) ? 1 / this.corpo.inercia : 0;
         
     }
 
@@ -99,13 +170,7 @@ export class Poligono2d extends Forma2d {
     }
 
     desenhar(pos, c, op) {
-        op = op || {};
-        let corL = op.corL || this.corL;
-        let alfaL = op.alfaL || this.alfaL;
-        let corP = op.corP || this.corP;
-        let alfaP = op.alfaP || this.alfaP;
-        let corVs = op.corVs || this.corVs || [];
-        let ctx = c.ctx;
+        const ctx = c.ctx;
         ctx.save();
         ctx.beginPath();
         for(let i in this.vs) {
@@ -115,62 +180,9 @@ export class Poligono2d extends Forma2d {
             else
                 ctx.lineTo(v.x, v.y);
         }
-        
         ctx.closePath();
-
-        if (corL) {
-            ctx.strokeStyle = corL;
-        } else {
-            ctx.strokeStyle = "white";
-        }
-        if (alfaL) {
-            ctx.globalAlpha = alfaL;
-        } else {
-            ctx.globalAlpha = 1;
-        }
+        ctx.strokeStyle = "white";
         ctx.stroke();
-
-        if (corP) {
-            ctx.fillStyle  = corP;
-            if (alfaP) {
-                ctx.globalAlpha = alfaP;
-            } else {
-                ctx.globalAlpha = 1;
-            }
-            ctx.fill();
-        } 
         ctx.restore();
-
-    }
-
-    desenharArea(pos, c) {
-        let ctx = c.ctx;
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(this.area[0].x + pos.x, this.area[0].y + pos.y);
-        ctx.lineTo(this.area[1].x + pos.x, this.area[0].y + pos.y);
-        ctx.lineTo(this.area[1].x + pos.x, this.area[1].y + pos.y);
-        ctx.lineTo(this.area[0].x + pos.x, this.area[1].y + pos.y);
-        ctx.closePath();
-
-        ctx.strokeStyle = "red";
-        ctx.stroke();
-
-        ctx.restore();
-    }
-
-    desenharNormas(pos, c) {
-        let ctx = c.ctx;
-        ctx.save();
-        
-        for(let i=0;i<this.vsQtd;i++) {
-            let v1 = this.vs[(i+1)%this.vsQtd];
-            let v2 = this.vs[i];
-            let v = v1.adic(pos);
-            v = v.adic(v2.sub(v1).div(2));
-            // v = v.adic(pos);
-            let n = this.ns[i].mult(20).adic(v);
-            c.linha(v.x, v.y, n.x, n.y, { c: "green" })
-        }
     }
 }

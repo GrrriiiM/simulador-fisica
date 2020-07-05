@@ -23,11 +23,12 @@ export class Canvas2d {
         this.h = 800;
         this.w = 800;
         this.bc = "#000000";
-        this.fps = 28;
+        this.fps = 60;
         this.animando = false;
         this.mouseX = 0;
         this.mouseY = 0;
         this.mousePressionado = false;
+        this._logs = [];
     }
 
     _mouseMove(ev) {
@@ -65,7 +66,7 @@ export class Canvas2d {
         this.ctx.fillStyle = "#FFFFFF";
         let fpsMeasureText = this.ctx.measureText(fpsText).width;
         this.ctx.fillText(fpsText, this.w - fpsMeasureText, this.h - 10);
-        
+        this.desenharLog();
         if (this.loop) this.loop(this, delta);
     }
 
@@ -87,6 +88,7 @@ export class Canvas2d {
         let fim = Date.now();
 
         let t = fim-inicio;
+
         return t;
     }
 
@@ -95,8 +97,14 @@ export class Canvas2d {
         this.animando = true;
         setTimeout(async () => {
             delta = await this.frame(delta);
-            this.iniciarLoop(delta);
+            if (this.animando) {
+                this.iniciarLoop(delta);
+            }
         }, 1);
+    }
+
+    pararLoop() {
+        this.animando = false;
     }
 
     linha(x1, y1, x2, y2, op) {
@@ -143,10 +151,17 @@ export class Canvas2d {
     pontos(ps) {
         ps.forEach(_ => this.ponto(_.x, _.y, _.r, _.c))
     }
-
+    
     log(t) {
-        this.ctx.font = "18px Arial";
-        this.ctx.fillStyle = "#FFFFFF";
-        this.ctx.fillText(t, 10, 20);
+        this._logs.push(t);
+    }
+
+    desenharLog() {
+        for(let i=0;i<this._logs.length;i++) {
+            this.ctx.font = "18px Arial";
+            this.ctx.fillStyle = "#FFFFFF";
+            this.ctx.fillText(this._logs[i], 10, 20 * (i + 1));
+        }
+        this._logs = [];
     }
 }

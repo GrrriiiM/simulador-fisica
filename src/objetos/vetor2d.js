@@ -8,10 +8,18 @@ export class Vetor2d {
         return v;
     }
 
+    static criar(x, y) {
+        return this.criarPos(0,0);
+    }
+
     static criarAng(angulo, magnitude) {
+        return this.criarRad(angulo*(Math.PI/180), magnitude);
+    }
+
+    static criarRad(rad, magnitude) {
         let v = new Vetor2d();
-        let s = Math.sin(angulo);
-        let c = Math.cos(angulo);
+        let s = Math.sin(rad);
+        let c = Math.cos(rad);
         let x = c * magnitude;
         let y = s * magnitude;
         return this.criarPos(x, y);
@@ -166,13 +174,9 @@ export class Vetor2d {
     }
     pVet(v) { return Vetor2d.pVet(this, v); }
 
-    static pVet2(v1, n) {
-        return this.criarVec(v1.y * n, - v1.x * -n);
-    }
-    pVet2(n) { return Vetor2d.pVet2(this, n); }
 
     static area(v1, v2) {
-        return this.pVet(v1, v2) / 2;
+        return Math.abs(this.pVet(v1, v2)) / 2;
     }
     area(v) { return Vetor2d.area(this, v); }
 
@@ -190,4 +194,20 @@ export class Vetor2d {
     }
     limit(n) { return Vetor2d.limit(this, n); }
 
+    static distQ(v1, v2) {
+        let v = v1.sub(v2);
+        v = v.mult(v);
+        return v.x + v.y
+    }
+    distQ(v) { return Vetor2d.distQ(this, v); }
+
+    static dist(v1, v2) {
+        return Math.sqrt(this.dist(v1, v2));
+    }
+    dist(v) { return Vetor2d.dist(this, v); }
+
+    static igual(v1, v2) {
+        return Math.abs(v1.x - v2.x) <= 0.000001 && Math.abs(v1.y - v2.y) <= 0.000001;
+    }
+    igual(v) { return Vetor2d.igual(this, v); }
 }
