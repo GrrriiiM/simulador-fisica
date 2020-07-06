@@ -29,6 +29,16 @@ export class Canvas2d {
         this.mouseY = 0;
         this.mousePressionado = false;
         this._logs = [];
+        this.tempoFrame = 0;
+        this.tempoTotal = 0
+
+        if (typeof window !== 'undefined') {
+            this.requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame
+                || window.mozRequestAnimationFrame || window.msRequestAnimationFrame;
+    
+            this.cancelAnimationFrame = window.cancelAnimationFrame || window.mozCancelAnimationFrame 
+                || window.webkitCancelAnimationFrame || window.msCancelAnimationFrame;
+        }
     }
 
     _mouseMove(ev) {
@@ -57,50 +67,34 @@ export class Canvas2d {
 
     }
 
-    _loop(delta) {
+
+    frame(tempo) {
+        let delta = 1000/(tempo ? tempo : 1000);
         this.ctx.fillStyle = this.bc;
         this.ctx.fillRect(0, 0, this.w, this.h);
         
-        let fpsText = `fps: ${Math.round(1000/delta)}`;
+        let fpsText = `fps: ${Math.round(delta)}`;
         this.ctx.font = "18px Arial";
         this.ctx.fillStyle = "#FFFFFF";
         let fpsMeasureText = this.ctx.measureText(fpsText).width;
         this.ctx.fillText(fpsText, this.w - fpsMeasureText, this.h - 10);
         this.desenharLog();
         if (this.loop) this.loop(this, delta);
+        return delta;
     }
 
-    async frame(delta) {
-        let loop = new Promise((resolve) => {
-            setTimeout(() => {
-                this._loop(delta);
-                resolve();
-            }, 1);
-        });
-        let frame = new Promise((resolve) => {
-            setTimeout(() => {
-                resolve();
-            }, 1000/this.fps);
-        });
-
-        let inicio = Date.now();
-        await Promise.all([loop, frame]);
-        let fim = Date.now();
-
-        let t = fim-inicio;
-
-        return t;
-    }
-
-    iniciarLoop(delta) {
-        delta = delta || 1000/this.fps;
+    iniciarLoop() {
         this.animando = true;
-        setTimeout(async () => {
-            delta = await this.frame(delta);
-            if (this.animando) {
-                this.iniciarLoop(delta);
-            }
-        }, 1);
+        this.render(0, this);
+    }
+
+    render(tempo, self) {
+        if (this.animando) {
+            this.tempoFrame = tempo - this.tempoTotal;
+            this.tempoTotal = tempo;
+            this.frame(this.tempoFrame);
+            this.frameRequestId = window.requestAnimationFrame(this.render.bind(this));
+        }
     }
 
     pararLoop() {

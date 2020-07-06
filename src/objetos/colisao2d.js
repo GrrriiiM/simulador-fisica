@@ -66,282 +66,166 @@ export class Colisao2d {
     }
 
     
+    preparar() {
+        this.corpo1.qtdContatos += this.contatos.length;
+        this.corpo2.qtdContatos += this.contatos.length;
+    }
 
-    corrigirRestituicao() {
-        //this.restituicao = 0;
-        if (this.mundo.gravidade) {
-            for (let contato of this.contatos) {
-                let ra = contato.sub(this.corpo1.posV);
-                let rb = contato.sub(this.corpo2.posV);
+    solucionar() {
+        let dist = this.corpo2.posVimpulso.adic(this.corpo2.posV)
+            .sub(this.corpo1.posVimpulso.adic(this.corpo1.posV))
+            .sub(this.penetracao);
 
-                let vv = rb.pVet(-this.corpo2.velAng);
-                let rv = this.corpo2.velV;
-                rv = rv.adic(vv);
-                rv = rv.sub(this.corpo1.velV);
-                rv = rv.sub(ra.pVet(-this.corpo1.velAng));
+        let separacao = Vector.dot(this.norma.pEsc, dist);
 
-                if (rv.magQ < this.mundo.gravidade.magQ)
-                {
-                    this.restituicao = 0;
+        let impulso = (separacao - this.restituicao);
+
+        if (this.corpo1.estatico || this.corpo2.estatico)
+            impulso *= 2;
+        
+        let _positionDampen = 0.9;
+
+        if (!(this.corpo1.estatico)) {
+            let compartilhado = _positionDampen / this.corpo1.qtdContatos;
+            this.corpo1.posVimpulso = this.corpo1.posVimpulso.adic(this.norma.mult(impulso * compartilhado));
+        }
+
+        if (!(this.corpo1)) {
+            let compartilhado = _positionDampen / this.corpo2.qtdContatos;
+            this.corpo2.posVimpulso = this.corpo2.posVimpulso.sub(this.norma.mult(impulso * compartilhado));
+        }
+    }
+
+    prepararVelocidade() {
+        let corpo1 = this.corpo1;
+        let corpo2 = this.corpo2;
+        let tangente = this.norma.perp;
+        let impulsoNorma = 0;
+        let tangentImpulse = 0;
+        let impulso = Vetor2d.criar();
+            
+        for (let contato of this.contatos) {
+
+            let contatoV = contato.v;
+            impulsoNorma = contato.impulsoNorma;
+            tangentImpulse = contato.tangentImpulse;
+
+            if (impulsoNorma !== 0 || impulsoNorma !== 0) {
+                // total impulse from contact
+                impulso = this.norma.mult(impulsoNorma)
+                    .adic(tangente.mult(tangentImpulse));
+
+                if (!(corpo1.estatico)) {
+                    let offset = contatoV.sub(corpo1.posV);
+                    corpo1.posVprev = corpo1.posVprev.adic(impulso.mult(corpo1.massaInv));
+                    corpo1.orientPrev += offset.pVet(impulso).mult(corpo1.inerciaInv);
+                }
+
+                if (!(corpo2.estatico)) {
+                    let offset = contatoV.sub(corpo2.posV);
+                    corpo2.posVprev = corpo2.posVprev.adic(impulso.mult(corpo2.massaInv));
+                    corpo2.orientPrev += offset.pVet(impulso).mult(corpo2.inerciaInv);
                 }
             }
-		}
+        }
     }
-
-    aplicarImpulso() {
-        
-
-        let corpo1 = this.corpo1;
-        let corpo2 = this.corpo2;
-
-		if (corpo1.massaInv + corpo2.massaInv == 0) {
-			this._corrigirPosicaoEstatico();
-			return;
-		}
-
-        let impulsos = [];
-
-        let contatos = this.contatos;
-        if (this.restituicao > 0) {
-            let contato = contatos[0];
-
-            if (contatos.length>1)
-                contato = contatos[1].sub(contato).div(2).adic(contato);
-
-            contatos = [ contato ];
-        }
-        
-		for (let contato of contatos) {
-
-            let r1 = contato.sub(corpo1.posV);
-            let r2 = contato.sub(corpo2.posV);
-
-            let velRelativa = corpo2.velV
-                .adic(r2.pVet(-corpo2.velAng))
-                .sub(corpo1.velV)
-                .sub(r1.pVet(-corpo1.velAng));
-                
-            let contatoVel = velRelativa.pEsc(this.norma);
-
-            if (contatoVel >= 0) return;
-
-            let r1VetNorma = r1.pVet(this.norma);
-            let r2VetNorma = r2.pVet(this.norma);
-            
-            let massaInvTotal = corpo1.massaInv + corpo2.massaInv;
-            massaInvTotal += r1VetNorma * r1VetNorma * corpo1.inerciaInv;
-            massaInvTotal += r2VetNorma * r2VetNorma * corpo2.inerciaInv;
-
-            let velMag = -(1 + this.restituicao);
-            velMag *= contatoVel;
-            velMag /= massaInvTotal;
-            velMag /= contatos.length;
-
-            let impulso = this.norma.mult(velMag);
-
-            impulsos.push({ impulso, contato });
-
-            // corpo1.aplicarImpulso(impulso.inv, r1);
-            // corpo2.aplicarImpulso(impulso, r2);
-
-            // velRelativa = corpo2.velV
-            //     .adic(r2.pVet(-corpo2.velAng))
-            //     .sub(corpo1.velV)
-            //     .sub(r1.pVet(-corpo1.velAng));
-
-            let tangente = velRelativa
-                .sub(this.norma.mult(velRelativa.pEsc(this.norma)))
-                .norm();
-       
-            let tangenteMag = -velRelativa.pEsc(tangente);
-            tangenteMag /= massaInvTotal;
-            tangenteMag /= contatos.length;
-
-
-            if(Math.abs(tangenteMag) < velMag * this.friccaoEstatica)
-                impulso = tangente.mult(tangenteMag);
-            else
-                impulso = tangente.mult(velMag).mult(-this.friccaoDinamica);
-
-
-            //impulsos.push({ impulso, contato });
-
-            // corpo1.aplicarImpulso(impulso.inv, r1);
-            // corpo2.aplicarImpulso(impulso, r2);
-
-            
-        }
-
-        // impulsos.forEach(_ => {
-        //     corpo1.aplicarImpulso(_.impulso.inv, _.contato.sub(corpo1.posV));
-        //     corpo2.aplicarImpulso(_.impulso, _.contato.sub(corpo2.posV));
-        // });
-
-        //impulsos = [];
-        //contatos = this.contatos;
-        for (let contato of contatos) {
-
-            let r1 = contato.sub(corpo1.posV);
-            let r2 = contato.sub(corpo2.posV);
-
-            let velRelativa = corpo2.velV
-                .adic(r2.pVet(-corpo2.velAng))
-                .sub(corpo1.velV)
-                .sub(r1.pVet(-corpo1.velAng));
-                
-            let contatoVel = velRelativa.pEsc(this.norma);
-
-            //if (contatoVel >= 0) return;
-
-            let r1VetNorma = r1.pVet(this.norma);
-            let r2VetNorma = r2.pVet(this.norma);
-            
-            let massaInvTotal = corpo1.massaInv + corpo2.massaInv;
-            massaInvTotal += r1VetNorma * r1VetNorma * corpo1.inerciaInv;
-            massaInvTotal += r2VetNorma * r2VetNorma * corpo2.inerciaInv;
-
-            let velMag = -(1 + this.restituicao);
-            velMag *= contatoVel;
-            velMag /= massaInvTotal;
-            velMag /= contatos.length;
-
-            //let impulso = this.norma.mult(velMag);
-
-            //impulsos.push({ impulso, contato });
-
-            // corpo1.aplicarImpulso(impulso.inv, r1);
-            // corpo2.aplicarImpulso(impulso, r2);
-
-            // velRelativa = corpo2.velV
-            //     .adic(r2.pVet(-corpo2.velAng))
-            //     .sub(corpo1.velV)
-            //     .sub(r1.pVet(-corpo1.velAng));
-
-            let tangente = velRelativa
-                .sub(this.norma.mult(velRelativa.pEsc(this.norma)))
-                .norm();
-       
-            let tangenteMag = -velRelativa.pEsc(tangente);
-            tangenteMag /= massaInvTotal;
-            tangenteMag /= contatos.length;
-
-            let impulso;
-            if(Math.abs(tangenteMag) < velMag * this.friccaoEstatica)
-                impulso = tangente.mult(tangenteMag);
-            else
-                impulso = tangente.mult(velMag).mult(-this.friccaoDinamica);
-
-
-            impulsos.push({ impulso, contato });
-
-            // corpo1.aplicarImpulso(impulso.inv, r1);
-            // corpo2.aplicarImpulso(impulso, r2);
-
-            
-        }
-
-        impulsos.forEach(_ => {
-            corpo1.aplicarImpulso(_.impulso.inv, _.contato.sub(corpo1.posV));
-            corpo2.aplicarImpulso(_.impulso, _.contato.sub(corpo2.posV));
-        });
-    }
-
-    // aplicarImpulsoTangente() {
-    //     let corpo1 = this.corpo1;
-    //     let corpo2 = this.corpo2;
-
-	// 	if (corpo1.massaInv + corpo2.massaInv == 0) {
-	// 		this._corrigirPosicaoEstatico();
-	// 		return;
-	// 	}
-
-    //     let impulsos = [];
-
-    //     let contatos = this.contatos;
-    //     if (this.restituicao > 0) {
-    //         let contato = contatos[0];
-
-    //         if (contatos.length>1)
-    //             contato = contatos[1].sub(contato).div(2).adic(contato);
-
-    //         contatos = [ contato ];
-    //     }
-        
-	// 	for (let contato of contatos) {
-
-    //         let r1 = contato.sub(corpo1.posV);
-    //         let r2 = contato.sub(corpo2.posV);
-
-    //         let velRelativa = corpo2.velV
-    //             .adic(r2.pVet(-corpo2.velAng))
-    //             .sub(corpo1.velV)
-    //             .sub(r1.pVet(-corpo1.velAng));
-                
-    //         let contatoVel = velRelativa.pEsc(this.norma);
-
-    //         if (contatoVel >= 0) return;
-
-    //         let r1VetNorma = r1.pVet(this.norma);
-    //         let r2VetNorma = r2.pVet(this.norma);
-            
-    //         let massaInvTotal = corpo1.massaInv + corpo2.massaInv;
-    //         massaInvTotal += r1VetNorma * r1VetNorma * corpo1.inerciaInv;
-    //         massaInvTotal += r2VetNorma * r2VetNorma * corpo2.inerciaInv;
-
-    //         let velMag = -(1 + this.restituicao);
-    //         velMag *= contatoVel;
-    //         velMag /= massaInvTotal;
-    //         velMag /= contatos.length;
-
-    //         velRelativa = corpo2.velV
-    //             .adic(r2.pVet(-corpo2.velAng))
-    //             .sub(corpo1.velV)
-    //             .sub(r1.pVet(-corpo1.velAng));
-
-    //         let tangente = velRelativa
-    //             .sub(this.norma.mult(velRelativa.pEsc(this.norma)))
-    //             .norm();
-       
-    //         let tangenteMag = -velRelativa.pEsc(tangente);
-    //         tangenteMag /= massaInvTotal;
-    //         tangenteMag /= contatos.length;
-
-    //         if(tangente >= -1 && tangente <= 1)
-    //             return;
-    //         let impulso;
-    //         if(Math.abs(tangenteMag) < velMag * this.friccaoEstatica)
-    //             impulso = tangente.mult(tangenteMag);
-    //         else
-    //             impulso = tangente.mult(velMag).mult(-this.friccaoDinamica);
-
-    //         impulsos.push({ impulso: impulso.copia, contato: contato.copia });
-    //     }
-
-    //     impulsos.forEach(_ => {
-    //         corpo1.aplicarImpulso(_.impulso.inv, _.contato.sub(corpo1.posV));
-    //         corpo2.aplicarImpulso(_.impulso, _.contato.sub(corpo2.posV));
-    //     })
-        
-    // }
     
-    _corrigirPosicaoEstatico(){
-        this.corpo1.velV.x = 0;
-        this.corpo1.velV.y = 0;
-		this.corpo2.velV.x = 0;
-        this.corpo2.velV.y = 0;
+
+    resolverVelocidade() {
+            
+            let corpo1 = this.corpo1;
+            let corpo2 = this.corpo2;
+            let norma = this.norma;
+            let tangente = this.norma.perp;
+            let contatos = this.contatos;
+            let contatosCompartilhados = 1 / this.contatos.length;
+
+            corpo1.velV = corpo1.posV.sub(corpo1.posVprev);
+            corpo2.velV = corpo2.posV.sub(corpo2.posVprev);
+            corpo1.velAng = corpo1.orient - corpo1.orientPrev;
+            corpo2.velAng = corpo2.orient - corpo2.orientPrev;
+
+            // resolve each contact
+            for (let contato of contatos) {
+
+                    let contatoV = contato.V;
+                    let offset1 = contatoV.sub(corpo1.posV);
+                    let offset2 = contatoV.sub(corpo2.posV);
+                    let velocidade1 = corpo1.velV.adic(offset1.perp.mult(corpo1.velAng));
+                    let velocidade2 = corpo2.velV.adic(offset2.perp.mult(corpo2.velAng));
+                    let velRelativa = velocidade1.sub(velocidade2);
+                    let velNorma = norma.pEsc(velRelativa);
+
+                    let velTangente = tangent.pEsc(velRelativa);
+
+                    tangentVelocityDirection = Common.sign(tangentVelocity);
+
+                // raw impulses
+                let impulsoNorma = (1 + this.restituicao) * velNorma;
+                let forcaNorma = 
+                let normalForce = Common.clamp(pair.separation + normalVelocity, 0, 1) * Resolver._frictionNormalMultiplier;
+
+                // coulomb friction
+                var tangentImpulse = tangentVelocity,
+                    maxFriction = Infinity;
+
+                if (tangentSpeed > pair.friction * pair.frictionStatic * normalForce * timeScaleSquared) {
+                    maxFriction = tangentSpeed;
+                    tangentImpulse = Common.clamp(
+                        pair.friction * tangentVelocityDirection * timeScaleSquared,
+                        -maxFriction, maxFriction
+                    );
+                }
+
+                // modify impulses accounting for mass, inertia and offset
+                var oAcN = Vector.cross(offsetA, normal),
+                    oBcN = Vector.cross(offsetB, normal),
+                    share = contactShare / (bodyA.inverseMass + bodyB.inverseMass + bodyA.inverseInertia * oAcN * oAcN  + bodyB.inverseInertia * oBcN * oBcN);
+
+                normalImpulse *= share;
+                tangentImpulse *= share;
+
+                // handle high velocity and resting collisions separately
+                if (normalVelocity < 0 && normalVelocity * normalVelocity > Resolver._restingThresh * timeScaleSquared) {
+                    // high normal velocity so clear cached contact normal impulse
+                    contact.normalImpulse = 0;
+                } else {
+                    // solve resting collision constraints using Erin Catto's method (GDC08)
+                    // impulse constraint tends to 0
+                    var contactNormalImpulse = contact.normalImpulse;
+                    contact.normalImpulse = Math.min(contact.normalImpulse + normalImpulse, 0);
+                    normalImpulse = contact.normalImpulse - contactNormalImpulse;
+                }
+
+                // handle high velocity and resting collisions separately
+                if (tangentVelocity * tangentVelocity > Resolver._restingThreshTangent * timeScaleSquared) {
+                    // high tangent velocity so clear cached contact tangent impulse
+                    contact.tangentImpulse = 0;
+                } else {
+                    // solve resting collision constraints using Erin Catto's method (GDC08)
+                    // tangent impulse tends to -tangentSpeed or +tangentSpeed
+                    var contactTangentImpulse = contact.tangentImpulse;
+                    contact.tangentImpulse = Common.clamp(contact.tangentImpulse + tangentImpulse, -maxFriction, maxFriction);
+                    tangentImpulse = contact.tangentImpulse - contactTangentImpulse;
+                }
+
+                // total impulse from contact
+                impulse.x = (normal.x * normalImpulse) + (tangent.x * tangentImpulse);
+                impulse.y = (normal.y * normalImpulse) + (tangent.y * tangentImpulse);
+                
+                // apply impulse from contact
+                if (!(bodyA.isStatic || bodyA.isSleeping)) {
+                    bodyA.positionPrev.x += impulse.x * bodyA.inverseMass;
+                    bodyA.positionPrev.y += impulse.y * bodyA.inverseMass;
+                    bodyA.anglePrev += Vector.cross(offsetA, impulse) * bodyA.inverseInertia;
+                }
+
+                if (!(bodyB.isStatic || bodyB.isSleeping)) {
+                    bodyB.positionPrev.x -= impulse.x * bodyB.inverseMass;
+                    bodyB.positionPrev.y -= impulse.y * bodyB.inverseMass;
+                    bodyB.anglePrev -= Vector.cross(offsetB, impulse) * bodyB.inverseInertia;
+                }
+            }
+        }
     }
-
-    corrigirPenetracao() {
-        let corpo1 = this.corpo1;
-        let corpo2 = this.corpo2;
-        const penetracaoPermitida = 0.05;
-        const penetracaoCorrecao = 0.4;
-        let correcao = Math.max(this.penetracao - penetracaoPermitida, 0) / (corpo1.massaInv + corpo2.massaInv) * penetracaoCorrecao;
-        //let correcao = this.penetracao / (corpo1.massaInv + corpo2.massaInv);
-
-        corpo1.posV = corpo1.posV.adic(this.norma.mult(-corpo1.massaInv * correcao));
-        corpo2.posV = corpo2.posV.adic(this.norma.mult(corpo2.massaInv * correcao));
-    }
-
-    
 }

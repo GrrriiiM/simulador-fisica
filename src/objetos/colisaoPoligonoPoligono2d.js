@@ -1,3 +1,5 @@
+import { Contato2d } from "./Contato2d.js";
+
 export  class ColisaoPoligonoPoligono2d {
     static calcular(colisao) {
         let forma1 = colisao.corpo1.forma;
@@ -16,12 +18,15 @@ export  class ColisaoPoligonoPoligono2d {
         let incidente;
         
         let sat1 = this._SAT(forma1, forma2);   
+
+        if (sat1.dist >= 0) return;
+
         let sat2 = this._SAT(forma2, forma1);
+
+        if (sat1.dist >= 0) return;
 
         const BIAS_RELATIVE = 0.95;
         const BIAS_ABSOLUTE = 0.01;
-
-        if (sat1.dist > 0 || sat2.dist > 0) return;
 
         let virar = false;
         if (sat1.dist >= sat2.dist * BIAS_RELATIVE + sat1.dist * BIAS_ABSOLUTE) {
@@ -47,7 +52,7 @@ export  class ColisaoPoligonoPoligono2d {
 
         let separacao = incidente.v1.pEsc(referencia.perp) - referencia.dist;
         if (separacao <= 0) {
-            colisao.contatos.push(incidente.v1.copia);
+            colisao.contatos.push(new Contato2d(incidente.v1.copia));
             colisao.penetracao = -separacao;
         } else {
             colisao.penetracao = 0;
@@ -55,7 +60,7 @@ export  class ColisaoPoligonoPoligono2d {
 
         separacao = incidente.v2.pEsc(referencia.perp) - referencia.dist;
 		if (separacao <= 0) {
-            colisao.contatos.push(incidente.v2);
+            colisao.contatos.push(new Contato2d(incidente.v2.copia));
             colisao.penetracao += -separacao;
             colisao.penetracao /= colisao.contatos.length
 		}

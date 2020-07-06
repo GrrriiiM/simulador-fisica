@@ -12,23 +12,30 @@ export class Corpo2d {
 
     static criar(posV, forma, op) {
         let corpo = new Corpo2d();
-        corpo.posV = posV;
+        corpo.posV = posV.copia;
+        corpo.posVprev = Vetor2d.criarPos(0, 0);
+        corpo.posVimpulso = Vetor2d.criarPos(0, 0);
         corpo.velV = Vetor2d.criarPos(0, 0);
         corpo.acelV = Vetor2d.criarPos(0, 0);
         corpo.forma = forma;
         forma.corpo = corpo;
         corpo.orient = 0;
+        corpo.orientPrev = 0;
         corpo.densidade = 0.5;
         corpo.restituicao = 0.1;
         corpo.friccaoEstatica = 0.5;
         corpo.friccaoDinamica = 0.3;
+        corpo.friccaoAr = 0.5;
         corpo.velAng = 0;
-        corpo.torque = 0
+        corpo.torque = 0;
+        corpo.qtdContatos = 0;
         Object.assign(corpo, op);
         
         corpo.forma._calcularMassa()
         return corpo;
     }
+
+
 
     
 
@@ -51,22 +58,41 @@ export class Corpo2d {
         this.acelV = this.acelV.adic(f.mult(this.massaInv));
     }
 
-    integrarForca() {
-        if (!this.massaInv) return;
-
-        this.velV = this.velV.adic(this.acelV);
-        this.velAng += this.torque * this.inerciaInv;
+    adicionarAceleracao(a) {
+        this.acelV = this.acelV.adic(a);
     }
 
-    integrarVelocidade() {
+    atualizar() {
+        
+        let friccaoAr = 1 - this.friccaoAr;
+        let posVprev = this.posV.sub(this.posVprev);
+
+        this.velV = posVprev.mult(friccaoAr).adic(this.acelV.div(this.massaInv))
+        
+        this.posVprev = this.posV.copia;
         this.posV = this.posV.adic(this.velV);
-        this.orient += this.velAng/(Math.PI/180);
-        this.integrarForca();
+
+        this.velAng = ((this.orient - this.orientPrev) * friccaoAr) + (this.torque * this.inertiaInv);
+        this.orientPrev = this.orient;
+        this.orient += this.velAng;
+        
     }
 
-    aplicarImpulso(impulso, contato) {
-        this.velV = this.velV.adic(impulso.mult(this.massaInv));
-        this.velAng += this.inerciaInv * contato.pVet(impulso);
+    aplicarImpulso() {
+        this.qtdContatos = 0;
+
+        let _positionWarming = 0.8;
+
+        if (this.posVimpulso.x !== 0 || thi.posVimpulso.y !== 0) {
+
+            this.posVprev = this.posVprev.adic(this.posVimpulso)
+
+            if (this.posVimpulso.pEsc(this.velV)<0) {
+                this.posVimpulso = Vetor2d.criar();
+            } else {
+                this.posVimpulso = this.posVimpulso.mult(_positionWarming);
+            }
+        }
     }
 
     resetar() {

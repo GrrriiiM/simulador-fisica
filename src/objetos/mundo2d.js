@@ -43,7 +43,38 @@ export class Mundo2d {
         this.colisoes = [];
     }
 
-    _colisoes() {
+    
+
+    frame() {
+        this.aplicarGravidade();
+        this.atualizarCorpos();
+
+        this.colisoes = this._colisoes();
+
+        this.prepararColisoes();
+
+        this.solucionarColisoes();
+
+        this.aplicarImpulso();
+
+        
+    }
+
+    aplicarGravidade() {
+        if (this.gravidade) {
+            for(let corpo of this.corpos) {
+                corpo.adicionarAceleracao(this.gravidade.div(corpo.massaInv));
+            }
+        }
+    }
+
+    atualizarCorpos() {
+        for(let corpo of this.corpos) {
+            corpo.atualizar();
+        }
+    }
+
+    detectarColisoes() {
         let colisoes = [];
         for(let i = 0; i<this.corpos.length; i++) {
             let corpo1 = this.corpos[i];
@@ -57,72 +88,27 @@ export class Mundo2d {
                 }
             }
         }
-        return colisoes;
+        this.colisoes = colisoes;
     }
 
-    frame() {
-        this._reset();
-        this.colisoes = this._colisoes();
-        
-        for(let corpo of this.corpos) {
-            this.integrarForca(corpo);
+    prepararColisoes() {
+        for(let colisao in this.colisoes) {
+            colisao.preparar();   
         }
+    }
 
-        for(let colisao of this.colisoes) {
-            colisao.corrigirRestituicao();
-        }
-        for(let i = 0; i < 10; i++) {
-            for(let colisao of this.colisoes) {
-                colisao.aplicarImpulso();
-                //colisao.aplicarImpulsoTangente();
+    solucionarColisoes() {
+        for(let i=0; i<10; i++) {
+            for(let colisao in this.colisoes) {
+                colisao.solucionar();   
             }
         }
-        for(let corpo of this.corpos) {
-            this.integrarVelocidade(corpo);
-        }
-        
-        for(let colisao of this.colisoes) {
-            colisao.corrigirPenetracao();
-        }
-
-        // for(let i=0;i<10;i++) {
-        //     for(let colisao of this._colisoes()) {
-        //         colisao.corrigirPenetracao();
-        //     }
-        // }
-        for(let corpo of this.corpos) {
-            corpo.resetar();
-        }
-        
     }
 
-
-
-    integrarForca(corpo, frameRate) {
-        if (corpo.estatico) {
-            return;
+    aplicarImpulso() {
+        for(let corpo of this.corpos) {
+            corpo.aplicarImpulso();
         }
-
-		let dts = 0.5;
-
-        if (!corpo.penetrado)
-            corpo.velV = corpo.velV.adic(this.gravidade.mult(dts));
-        corpo.velV = corpo.velV.adic(corpo.acelV.mult(dts));
-
-		corpo.velAng += corpo.torque * corpo.inerciaInv * dts;
-    }
-
-    integrarVelocidade(corpo, frameRate) {
-
-        if (corpo.estatico) {
-            return;
-        }
-
-		corpo.posV = corpo.posV.adic(corpo.velV);
-		corpo.orient += corpo.velAng/(Math.PI/180);;
-		
-
-		this.integrarForca(corpo, frameRate);
     }
     
 
