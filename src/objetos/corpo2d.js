@@ -13,7 +13,7 @@ export class Corpo2d {
     static criar(posV, forma, op) {
         let corpo = new Corpo2d();
         corpo.posV = posV.copia;
-        corpo.posVprev = Vetor2d.criarPos(0, 0);
+        corpo.posVprev = posV.copia;
         corpo.posVimpulso = Vetor2d.criarPos(0, 0);
         corpo.velV = Vetor2d.criarPos(0, 0);
         corpo.acelV = Vetor2d.criarPos(0, 0);
@@ -59,22 +59,24 @@ export class Corpo2d {
     }
 
     adicionarAceleracao(a) {
+        if (this.estatico) return;
         this.acelV = this.acelV.adic(a);
     }
 
     atualizar() {
-        
+        if (this.estatico) return;
+
         let friccaoAr = 1 - this.friccaoAr;
         let posVprev = this.posV.sub(this.posVprev);
 
-        this.velV = posVprev.mult(friccaoAr).adic(this.acelV.div(this.massaInv))
+        this.velV = posVprev.mult(friccaoAr).adic(this.acelV.mult(this.massaInv))
         
         this.posVprev = this.posV.copia;
         this.posV = this.posV.adic(this.velV);
 
-        this.velAng = ((this.orient - this.orientPrev) * friccaoAr) + (this.torque * this.inertiaInv);
+        this.velAng = ((this.orient - this.orientPrev) * friccaoAr) + (this.torque * this.inerciaInv);
         this.orientPrev = this.orient;
-        this.orient += this.velAng;
+        //this.orient += this.velAng;
         
     }
 
@@ -83,7 +85,7 @@ export class Corpo2d {
 
         let _positionWarming = 0.8;
 
-        if (this.posVimpulso.x !== 0 || thi.posVimpulso.y !== 0) {
+        if (this.posVimpulso.x !== 0 || this.posVimpulso.y !== 0) {
 
             this.posVprev = this.posVprev.adic(this.posVimpulso)
 

@@ -12,11 +12,14 @@ let canvas = Canvas2d.criar({
 
 let mundo = Mundo2d.criar(0, 0, canvas.w, canvas.h, { paredes: true, gravidade: 0.4 });
 
+
 // mundo.adic(Vetor2d.criarPos(100, canvas.h-30), Circulo2d.criar(30), Corpo2d.elastico());
 let corpos = []
 
 let tq = 50
 let x = 10;
+
+mundo.adic(Vetor2d.criarPos(canvas.w-200, 100), Poligono2d.criarQuadrado(tq), Corpo2d.elastico());
 
 // for(let i=0; i<x; i++) {
 //     for(let j=0; j<3; j++) {

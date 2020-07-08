@@ -30,19 +30,20 @@ let poligono = Poligono2d.criarRandom(50, 5, 100).vs;
 
 let forma = poligono;
 
-let corpo1 = mundo.adic(Vetor2d.criarRandom(canvas.w, canvas.h), Poligono2d.criar(forma, Corpo2d.rocha()));
+let corpo1 = mundo.adic(Vetor2d.criarPos(500, 500), Poligono2d.criarQuadrado(50), Corpo2d.rocha());
 
-mundo.adic(Vetor2d.criarRandom(canvas.w, canvas.h), Poligono2d.criar(forma, Corpo2d.rocha()));
+mundo.adic(Vetor2d.criarPos(700, 500), Poligono2d.criarQuadrado(50), Corpo2d.rocha());
 
 
-mundo.adic(Vetor2d.criarPos(-40, canvas.h/2), Poligono2d.criar([[0, 0], [100,0], [0, canvas.h], [100, canvas.h]]), Corpo2d.estatico());
-mundo.adic(Vetor2d.criarPos(canvas.w+40, canvas.h/2), Poligono2d.criar([[0, 0], [100,0], [0, canvas.h], [100, canvas.h]]), Corpo2d.estatico());
-mundo.adic(Vetor2d.criarPos(canvas.w/2, canvas.h+40), Poligono2d.criar([[0, 0], [0,100], [canvas.w-25, 0], [canvas.w-25, 100]]), Corpo2d.estatico());
+// mundo.adic(Vetor2d.criarPos(-40, canvas.h/2), Poligono2d.criar([[0, 0], [100,0], [0, canvas.h], [100, canvas.h]]), Corpo2d.estatico());
+// mundo.adic(Vetor2d.criarPos(canvas.w+40, canvas.h/2), Poligono2d.criar([[0, 0], [100,0], [0, canvas.h], [100, canvas.h]]), Corpo2d.estatico());
+// mundo.adic(Vetor2d.criarPos(canvas.w/2, canvas.h+40), Poligono2d.criar([[0, 0], [0,100], [canvas.w-25, 0], [canvas.w-25, 100]]), Corpo2d.estatico());
 
 canvas.iniciarLoop();
 canvas.loop = (c) => {
     let op = { desenharArea: true, desenharNormas: true };
-    corpo1.pos(c.mouseX, c.mouseY);
+
+    if (c.mouseX && c.mouseY) corpo1.pos(c.mouseX, c.mouseY);
 
     mundo.frame();
 

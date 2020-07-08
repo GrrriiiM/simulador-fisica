@@ -49,7 +49,7 @@ export class Mundo2d {
         this.aplicarGravidade();
         this.atualizarCorpos();
 
-        this.colisoes = this._colisoes();
+        this.detectarColisoes();
 
         this.prepararColisoes();
 
@@ -57,13 +57,19 @@ export class Mundo2d {
 
         this.aplicarImpulso();
 
-        
+        // this.prepararVelocidade();
+
+        // this.resolverVelocidade();
+
+        this.resetar();
     }
 
     aplicarGravidade() {
         if (this.gravidade) {
             for(let corpo of this.corpos) {
-                corpo.adicionarAceleracao(this.gravidade.div(corpo.massaInv));
+                if (!corpo.estatico) {
+                    corpo.adicionarAceleracao(this.gravidade.div(corpo.massaInv));
+                }
             }
         }
     }
@@ -92,14 +98,14 @@ export class Mundo2d {
     }
 
     prepararColisoes() {
-        for(let colisao in this.colisoes) {
+        for(let colisao of this.colisoes) {
             colisao.preparar();   
         }
     }
 
     solucionarColisoes() {
-        for(let i=0; i<10; i++) {
-            for(let colisao in this.colisoes) {
+        for(let i=0; i<1; i++) {
+            for(let colisao of this.colisoes) {
                 colisao.solucionar();   
             }
         }
@@ -110,6 +116,20 @@ export class Mundo2d {
             corpo.aplicarImpulso();
         }
     }
+
+    prepararVelocidade() {
+        for(let colisao of this.colisoes) {
+            colisao.prepararVelocidade();   
+        }
+    }
+
+    resolverVelocidade() {
+        for(let i=0; i<10; i++) {
+            for(let colisao of this.colisoes) {
+                colisao.resolverVelocidade();   
+            }
+        }
+    }
     
 
     desenhar(c, op) {
@@ -118,5 +138,9 @@ export class Mundo2d {
         }
     }
 
-    
+    resetar() {
+        for(let corpo of this.corpos) {
+            corpo.resetar();
+        }
+    }
 }

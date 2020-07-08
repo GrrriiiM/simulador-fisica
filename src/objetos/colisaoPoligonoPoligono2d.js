@@ -2,131 +2,225 @@ import { Contato2d } from "./Contato2d.js";
 
 export  class ColisaoPoligonoPoligono2d {
     static calcular(colisao) {
-        let forma1 = colisao.corpo1.forma;
-        let forma2 = colisao.corpo2.forma;
 
-        let min1 = forma1.min.adic(forma1.corpo.posV);
-        let max1 = forma1.max.adic(forma1.corpo.posV);
-        let min2 = forma2.min.adic(forma2.corpo.posV);
-        let max2 = forma2.max.adic(forma2.corpo.posV);
+        let corpo1 = colisao.corpo1;
+        let corpo2 = colisao.corpo2;
+        let forma1 = corpo1.forma;
+        let forma2 = corpo2.forma;
 
-        // if (!(min1.x < max2.x && min2.x < max1.x
-        //     && min1.y < max2.y && min2.y < max1.y))
-        //     return;
+        let sat1 = this._SAT(forma1, forma2);
 
-        let referencia;
-        let incidente;
-        
-        let sat1 = this._SAT(forma1, forma2);   
-
-        if (sat1.dist >= 0) return;
+        if (sat1.sobreposicao <= 0) {
+            return colisao;
+        }
 
         let sat2 = this._SAT(forma2, forma1);
 
-        if (sat1.dist >= 0) return;
-
-        const BIAS_RELATIVE = 0.95;
-        const BIAS_ABSOLUTE = 0.01;
-
-        let virar = false;
-        if (sat1.dist >= sat2.dist * BIAS_RELATIVE + sat1.dist * BIAS_ABSOLUTE) {
-            referencia = new Face(forma1, forma2, sat1.indexV);
-            let i = this._indiceNormaMaisProxima(forma2, referencia.n);
-            incidente = new Face(forma2, forma1, i);
-        } else {
-            referencia = new Face(forma2, forma1, sat2.indexV);
-            let i = this._indiceNormaMaisProxima(forma1, referencia.n);
-            incidente = new Face(forma1, forma2, i);
-            virar = true;
+        if (sat2.sobreposicao <= 0) {
+            return colisao;
         }
 
-        colisao.norma = referencia.perp;
-        
-        if (virar) colisao.norma = colisao.norma.inv;
+        let menorSat;
 
-        if (!incidente.cortar(referencia.plano.inv, referencia.ladoNeg)) return;
-
-        if (!incidente.cortar(referencia.plano, referencia.ladoPosi)) return;
-
-        
-
-        let separacao = incidente.v1.pEsc(referencia.perp) - referencia.dist;
-        if (separacao <= 0) {
-            colisao.contatos.push(new Contato2d(incidente.v1.copia));
-            colisao.penetracao = -separacao;
+        if (sat1.sobreposicao < sat2.sobreposicao) {
+            menorSat = sat1;
+            colisao.corpoNorma = corpo1;
         } else {
-            colisao.penetracao = 0;
+            menorSat = sat2;
+            colisao.corpoNorma = corpo2;
         }
 
-        separacao = incidente.v2.pEsc(referencia.perp) - referencia.dist;
-		if (separacao <= 0) {
-            colisao.contatos.push(new Contato2d(incidente.v2.copia));
-            colisao.penetracao += -separacao;
-            colisao.penetracao /= colisao.contatos.length
-		}
+        // important for reuse later
+        colisao.indexV = menorSat.indexV;
+
+        //collision.bodyA = bodyA.id < bodyB.id ? bodyA : bodyB;
+        //collision.bodyB = bodyA.id < bodyB.id ? bodyB : bodyA;
+        //collision.collided = true;
+        colisao.sobreposicao = menorSat.sobreposicao;
         
+        //bodyA = collision.bodyA;
+        //bodyB = collision.bodyB;
+
+        // ensure normal is facing away from bodyA
+        if (menorSat.v.pEsc(corpo2.posV.sub(corpo1.posV)) < 0) {
+            colisao.norma = menorSat.v.copia;
+        } else {
+            colisao.norma = menorSat.v.inv;
+        }
+
+        colisao.tangente = colisao.norma.perp;
+
+        colisao.penetracao = colisao.norma.mult(colisao.sobreposicao);
+
+        let contatos = [];
+        let vs1 = this._econtrarContato(corpo1, corpo2, colisao.norma);
+            
+
+        // find the supports from bodyB that are inside bodyA
+        if (this._contemPonto(corpo1, vs1[0]))
+            contatos.push(vs1[0]);
+
+        if (this._contemPonto(corpo1, vs1[1]))
+            contatos.push(vs1[1]);
+
+        
+        if (contatos.length < 2) {
+            var vs2 = this._econtrarContato(corpo2, corpo1, colisao.norma.inv);
+            
+            if (this._contemPonto(corpo2, vs2[0]))
+                contatos.push(vs2[0]);
+
+            if (contatos.length < 2 && this._contemPonto(corpo2, vs2[1]))
+                contatos.push(vs2[1]);
+        }
+
+        if (contatos.length < 1)
+            contatos = [vs1[0]];
+        
+        colisao.contatos = contatos;
+
+        return colisao;
     }
 
     static _SAT(forma1, forma2) {
-        let dist = -Number.MAX_VALUE;
-        let indexV = 0;
+
+        let ret = {
+            sobreposicao: Number.MAX_VALUE
+        };
 
         for (let i = 0; i < forma1.vsQtd; i++) {
-            let v1 = forma1.vs[i]
+
             let n = forma1.ns[i];
             n = n.mult(forma1.u);
-            n = n.mult(forma2.u.transp);
 
+            let projecao1 = this._projetarNorma(forma1, n);
+            let projecao2 = this._projetarNorma(forma2, n);
 
-            let projecao = -Number.MAX_VALUE;
-            let v2 = null;
+            let sobreposicao = Math.min(projecao1.max - projecao2.min, projecao2.max - projecao1.min);
 
-            for (let j = 0; j < forma2.vsQtd; j++) {
-                let v = forma2.vs[j];
-                let p = v.pEsc(n.inv);
-
-                if (p > projecao) {
-                    v2 = v;
-                    projecao = p;
-                }
+            if (sobreposicao <= 0) {
+                ret.sobreposicao = sobreposicao;
+                return ret;
+            } else if(sobreposicao < ret.sobreposicao) {
+                ret.sobreposicao = sobreposicao;
+                ret.indexV = i;
+                ret.v = n;
             }
 
-            // if (!v2) return {
-            //     dist: 1
-            // };
+            // let projecao = -Number.MAX_VALUE;
+            // let v2 = null;
 
-            let vm = v1.mult(forma1.u);
-            vm = vm.adic(forma1.corpo.posV);
-            vm = vm.sub(forma2.corpo.posV);
-            vm = vm.mult(forma2.u.transp);
+            // for (let j = 0; j < forma2.vsQtd; j++) {
+            //     let v = forma2.vs[j];
+            //     let p = v.pEsc(n.inv);
 
-            let d = n.pEsc(v2.sub(vm));
+            //     if (p > projecao) {
+            //         v2 = v;
+            //         projecao = p;
+            //     }
+            // }
 
-            if (d > dist) {
-                dist = d;
-                indexV = i;
-            }
+            // // if (!v2) return {
+            // //     dist: 1
+            // // };
+
+            // let vm = v1.mult(forma1.u);
+            // vm = vm.adic(forma1.corpo.posV);
+            // vm = vm.sub(forma2.corpo.posV);
+            // vm = vm.mult(forma2.u.transp);
+
+            // let d = n.pEsc(v2.sub(vm));
+
+            // if (d > dist) {
+            //     dist = d;
+            //     indexV = i;
+            // }
         }
 
-        return {
-            dist: dist,
-            indexV: indexV,
-            v: forma1.vs[indexV]
-        };
+        return ret;
     }
 
-    static _indiceNormaMaisProxima(forma, norma) {
-        let i = 0;
-        let minD = Number.MAX_VALUE;
-		for (let j = 0; j < forma.vsQtd; ++j) {
-            let n = forma.ns[j];
-			let d = n.pEsc(norma);
-			if (d < minD) {
-				minD = d;
-				i = j;
-			}
+    static _projetarNorma = function(forma, n) {
+        let min = Number.MAX_VALUE;
+        let max = Number.MIN_VALUE;
+
+        for (let v of forma.vs) {
+            
+            var dot = v.adic(forma.corpo.posV)
+                .mult(forma.u)
+                .pEsc(n);
+
+            if (dot > max) { 
+                max = dot; 
+            } else if (dot < min) { 
+                min = dot; 
+            }
         }
-        return i;
+
+        return { min, max };
+    };
+
+    static _econtrarContato(corpo1, corpo2, n) {
+        let distanciaProxima = Number.MAX_VALUE;
+        let indexV1;
+        let indexV2;
+
+        for(let i = 0; i < corpo2.forma.vsQtd; i++) {
+            let v = corpo2.forma.vs[i]
+                .adic(corpo2.posV)
+                .mult(corpo2.forma.u)
+                .sub(corpo1.posV);
+            let dist = -n.pEsc(v);
+
+            if (dist < distanciaProxima) {
+                distanciaProxima = dist;
+                indexV1 = i;
+            }
+
+        }
+
+        let antIndexV = indexV1 - 1 >= 0 ? indexV1 - 1 : corpo2.forma.vsQtd - 1;
+        let antV = corpo2.forma.vs[antIndexV]
+            .adic(corpo2.posV)
+            .mult(corpo2.forma.u)
+            .sub(corpo1.posV);
+        let antDist = -n.pEsc(antV);
+        
+
+        let proxIndexV = (indexV1 + 1) % corpo2.forma.vsQtd;
+        let proxV = corpo2.forma.vs[proxIndexV]
+            .adic(corpo2.posV)
+            .mult(corpo2.forma.u)
+            .sub(corpo1.posV);
+        let proxDist = -n.pEsc(proxV);
+        
+        
+        if (proxDist < antDist) {
+            indexV2 = proxIndexV;
+        } else {
+            indexV2 = antIndexV;
+        }
+
+        return [
+            corpo2.forma.vs[indexV1].adic(corpo2.posV).mult(corpo2.forma.u),
+            corpo2.forma.vs[indexV2].adic(corpo2.posV).mult(corpo2.forma.u)
+        ];
+    }
+
+    static _contemPonto(corpo, p) {
+        for (let i = 0; i<corpo.forma.vsQtd; i++) {
+            let v1 = corpo.forma.vs[i]
+                .adic(corpo.posV)
+                .mult(corpo.forma.u);
+            let v2 = corpo.forma.vs[(i+1) % corpo.forma.vsQtd]
+                .adic(corpo.posV)
+                .mult(corpo.forma.u);
+            if ((p.x - v1.x) * (v2.y - v1.y) + (p.y - v1.y) * (v1.x - v2.x) > 0) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
 

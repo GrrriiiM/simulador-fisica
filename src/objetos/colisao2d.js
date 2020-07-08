@@ -72,13 +72,15 @@ export class Colisao2d {
     }
 
     solucionar() {
-        let dist = this.corpo2.posVimpulso.adic(this.corpo2.posV)
-            .sub(this.corpo1.posVimpulso.adic(this.corpo1.posV))
-            .sub(this.penetracao);
+        let corpo1 = this.corpo1;
+        let corpo2 = this.corpo2;
+        let dist = Vetor2d.sub(Vetor2d.adic(corpo1.posVimpulso, corpo1.posV), 
+            Vetor2d.adic(corpo2.posVimpulso, 
+                Vetor2d.sub(corpo1.posV, this.penetracao)));
 
-        let separacao = Vector.dot(this.norma.pEsc, dist);
+        let separacao = this.norma.pEsc(dist);
 
-        let impulso = (separacao - this.restituicao);
+        let impulso = (separacao - 0.05);
 
         if (this.corpo1.estatico || this.corpo2.estatico)
             impulso *= 2;
@@ -90,7 +92,7 @@ export class Colisao2d {
             this.corpo1.posVimpulso = this.corpo1.posVimpulso.adic(this.norma.mult(impulso * compartilhado));
         }
 
-        if (!(this.corpo1)) {
+        if (!(this.corpo2.estatico)) {
             let compartilhado = _positionDampen / this.corpo2.qtdContatos;
             this.corpo2.posVimpulso = this.corpo2.posVimpulso.sub(this.norma.mult(impulso * compartilhado));
         }
@@ -101,19 +103,18 @@ export class Colisao2d {
         let corpo2 = this.corpo2;
         let tangente = this.norma.perp;
         let impulsoNorma = 0;
-        let tangentImpulse = 0;
+        let impulsoTangente = 0;
         let impulso = Vetor2d.criar();
             
         for (let contato of this.contatos) {
 
             let contatoV = contato.v;
             impulsoNorma = contato.impulsoNorma;
-            tangentImpulse = contato.tangentImpulse;
+            impulsoTangente = contato.impulsoTangente;
 
             if (impulsoNorma !== 0 || impulsoNorma !== 0) {
-                // total impulse from contact
                 impulso = this.norma.mult(impulsoNorma)
-                    .adic(tangente.mult(tangentImpulse));
+                    .adic(tangente.mult(impulsoTangente));
 
                 if (!(corpo1.estatico)) {
                     let offset = contatoV.sub(corpo1.posV);
@@ -133,98 +134,87 @@ export class Colisao2d {
 
     resolverVelocidade() {
             
-            let corpo1 = this.corpo1;
-            let corpo2 = this.corpo2;
-            let norma = this.norma;
-            let tangente = this.norma.perp;
-            let contatos = this.contatos;
-            let contatosCompartilhados = 1 / this.contatos.length;
+        let corpo1 = this.corpo1;
+        let corpo2 = this.corpo2;
+        let norma = this.norma;
+        let tangente = this.norma.perp;
+        let contatos = this.contatos;
+        let contatosCompartilhados = 1 / this.contatos.length;
 
-            corpo1.velV = corpo1.posV.sub(corpo1.posVprev);
-            corpo2.velV = corpo2.posV.sub(corpo2.posVprev);
-            corpo1.velAng = corpo1.orient - corpo1.orientPrev;
-            corpo2.velAng = corpo2.orient - corpo2.orientPrev;
+        corpo1.velV = corpo1.posV.sub(corpo1.posVprev);
+        corpo2.velV = corpo2.posV.sub(corpo2.posVprev);
+        corpo1.velAng = corpo1.orient - corpo1.orientPrev;
+        corpo2.velAng = corpo2.orient - corpo2.orientPrev;
 
-            // resolve each contact
-            for (let contato of contatos) {
+        // resolve each contact
+        for (let contato of contatos) {
 
-                    let contatoV = contato.V;
-                    let offset1 = contatoV.sub(corpo1.posV);
-                    let offset2 = contatoV.sub(corpo2.posV);
-                    let velocidade1 = corpo1.velV.adic(offset1.perp.mult(corpo1.velAng));
-                    let velocidade2 = corpo2.velV.adic(offset2.perp.mult(corpo2.velAng));
-                    let velRelativa = velocidade1.sub(velocidade2);
-                    let velNorma = norma.pEsc(velRelativa);
+            let contatoV = contato.v;
+            let offset1 = contatoV.sub(corpo1.posV);
+            let offset2 = contatoV.sub(corpo2.posV);
+            let velocidade1 = corpo1.velV.adic(offset1.perp.mult(corpo1.velAng));
+            let velocidade2 = corpo2.velV.adic(offset2.perp.mult(corpo2.velAng));
+            let velRelativa = velocidade1.sub(velocidade2);
+            let velNorma = norma.pEsc(velRelativa);
 
-                    let velTangente = tangent.pEsc(velRelativa);
+            let velTangente = tangente.pEsc(velRelativa);
 
-                    tangentVelocityDirection = Common.sign(tangentVelocity);
+            let velTangenteDirecao = velTangente < 0 ? -1 : 1;
 
-                // raw impulses
-                let impulsoNorma = (1 + this.restituicao) * velNorma;
-                let forcaNorma = 
-                let normalForce = Common.clamp(pair.separation + normalVelocity, 0, 1) * Resolver._frictionNormalMultiplier;
+            
+            let impulsoNorma = (1 + this.restituicao) * velNorma;
+            let forcaNorma = this.separacao + velNorma;
+            forcaNorma = forcaNorma < 0 ? 0 : forcaNorma;
+            forcaNorma = forcaNorma > 1 ? 1 : forcaNorma;
+            forcaNorma *= 5;
 
-                // coulomb friction
-                var tangentImpulse = tangentVelocity,
-                    maxFriction = Infinity;
+            let impulsoTangente = velTangente;
+            let friccaoMax = Number.POSITIVE_INFINITY;
 
-                if (tangentSpeed > pair.friction * pair.frictionStatic * normalForce * timeScaleSquared) {
-                    maxFriction = tangentSpeed;
-                    tangentImpulse = Common.clamp(
-                        pair.friction * tangentVelocityDirection * timeScaleSquared,
-                        -maxFriction, maxFriction
-                    );
-                }
+            if (Math.abs(velTangente) > this.friccaoDinamica * this.friccaoEstatica * forcaNorma) {
+                friccaoMax = Math.abs(velTangente);
+                impulsoTangente = this.friccaoDinamica * velTangenteDirecao;
+                impulsoTangente = impulsoTangente < -friccaoMax ? -friccaoMax : 0;
+                impulsoTangente = impulsoTangente > friccaoMax ? friccaoMax : 0;
+            }
 
-                // modify impulses accounting for mass, inertia and offset
-                var oAcN = Vector.cross(offsetA, normal),
-                    oBcN = Vector.cross(offsetB, normal),
-                    share = contactShare / (bodyA.inverseMass + bodyB.inverseMass + bodyA.inverseInertia * oAcN * oAcN  + bodyB.inverseInertia * oBcN * oBcN);
+            let oAcN = offset1.pVet(norma);
+            let oBcN = offset2.pVet(norma);;
+            let compartilhado = contatosCompartilhados / (corpo1.massaInv + corpo2.massaInv + corpo1.inerciaInv * oAcN * oAcN  + corpo2.inerciaInv * oBcN * oBcN);
 
-                normalImpulse *= share;
-                tangentImpulse *= share;
+            impulsoNorma *= compartilhado;
+            impulsoTangente *= compartilhado;
 
-                // handle high velocity and resting collisions separately
-                if (normalVelocity < 0 && normalVelocity * normalVelocity > Resolver._restingThresh * timeScaleSquared) {
-                    // high normal velocity so clear cached contact normal impulse
-                    contact.normalImpulse = 0;
-                } else {
-                    // solve resting collision constraints using Erin Catto's method (GDC08)
-                    // impulse constraint tends to 0
-                    var contactNormalImpulse = contact.normalImpulse;
-                    contact.normalImpulse = Math.min(contact.normalImpulse + normalImpulse, 0);
-                    normalImpulse = contact.normalImpulse - contactNormalImpulse;
-                }
+            
+            if (velNorma < 0 && velNorma * velNorma > 4) {
+                contato.impulsoNorma = 0;
+            } else {
 
-                // handle high velocity and resting collisions separately
-                if (tangentVelocity * tangentVelocity > Resolver._restingThreshTangent * timeScaleSquared) {
-                    // high tangent velocity so clear cached contact tangent impulse
-                    contact.tangentImpulse = 0;
-                } else {
-                    // solve resting collision constraints using Erin Catto's method (GDC08)
-                    // tangent impulse tends to -tangentSpeed or +tangentSpeed
-                    var contactTangentImpulse = contact.tangentImpulse;
-                    contact.tangentImpulse = Common.clamp(contact.tangentImpulse + tangentImpulse, -maxFriction, maxFriction);
-                    tangentImpulse = contact.tangentImpulse - contactTangentImpulse;
-                }
+                var contatoImpulsoNorma = contato.impulsoNorma;
+                contato.impulsoNorma = Math.min(contato.impulsoNorma + impulsoNorma, 0);
+                impulsoNorma = contato.impulsoNorma - contatoImpulsoNorma;
+            }
 
-                // total impulse from contact
-                impulse.x = (normal.x * normalImpulse) + (tangent.x * tangentImpulse);
-                impulse.y = (normal.y * normalImpulse) + (tangent.y * tangentImpulse);
-                
-                // apply impulse from contact
-                if (!(bodyA.isStatic || bodyA.isSleeping)) {
-                    bodyA.positionPrev.x += impulse.x * bodyA.inverseMass;
-                    bodyA.positionPrev.y += impulse.y * bodyA.inverseMass;
-                    bodyA.anglePrev += Vector.cross(offsetA, impulse) * bodyA.inverseInertia;
-                }
+            if (velTangente * velTangente > 6) {
+                contato.impulsoTangente = 0;
+            } else {
+                var contatoImpulsoTangente = contato.impulsoTangente;
+                contato.impulsoTangente = contato.impulsoTangente + impulsoTangente;
+                contato.impulsoTangente = contato.impulsoTangente < -friccaoMax ? -friccaoMax : contato.impulsoTangente;
+                contato.impulsoTangente = contato.impulsoTangente > friccaoMax ? friccaoMax : contato.impulsoTangente;
+                impulsoTangente = contato.impulsoTangente - contatoImpulsoTangente
+            }
 
-                if (!(bodyB.isStatic || bodyB.isSleeping)) {
-                    bodyB.positionPrev.x -= impulse.x * bodyB.inverseMass;
-                    bodyB.positionPrev.y -= impulse.y * bodyB.inverseMass;
-                    bodyB.anglePrev -= Vector.cross(offsetB, impulse) * bodyB.inverseInertia;
-                }
+            let impulso = norma.mult(impulsoNorma).adic(tangente.mult(impulsoTangente));
+            
+            if (!(corpo1.estatico)) {
+                corpo1.posVprev = corpo1.posVprev.adic(impulso.mult(corpo1.massaInv));
+                corpo1.orientPrev += offset1.pVet(impulso) * corpo1.inerciaInv;
+            }
+
+            if (!(corpo2.estatico)) {
+                corpo2.posVprev = corpo2.posVprev.adic(impulso.mult(corpo2.massaInv));
+                corpo2.orientPrev += offset2.pVet(impulso) *corpo2.inerciaInv;
             }
         }
     }
