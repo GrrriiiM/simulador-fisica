@@ -1,105 +1,176 @@
+import { Mundo2d } from "./mundo2d.js";
+import { Vertice2d } from "./vertice2d.js";
 import { Vetor2d } from "./vetor2d.js";
+import { Eixo } from "./eixo.js";
+import { Borda2d } from "./borda2d.js";
 
 export class Corpo2d {
-
-    static rocha(op) { return Object.assign({ densidade: 0.6, restituicao: 0.1 }, op); }
-    static madeira(op) { return Object.assign({ densidade: 0.3, restituicao: 0.2 }, op); }
-    static metal(op) { return Object.assign({ densidade: 1.2, restituicao: 0.05 }, op); }
-    static borracha(op) { return Object.assign({ densidade: 0.3, restituicao: 0.8 }, op); }
-    static elastico(op) { return Object.assign({ densidade: 0.3, restituicao: 0.95 }, op); }
-    static almofada(op) { return Object.assign({ densidade: 0.1, restituicao: 0.2 }, op); }
-    static estatico(op) { return Object.assign({ densidade: 0, restituicao: 0.4 }, op); }
-
-    static criar(posV, forma, op) {
-        let corpo = new Corpo2d();
-        corpo.posV = posV.copia;
-        corpo.posVprev = posV.copia;
-        corpo.posVimpulso = Vetor2d.criarPos(0, 0);
-        corpo.velV = Vetor2d.criarPos(0, 0);
-        corpo.acelV = Vetor2d.criarPos(0, 0);
-        corpo.forma = forma;
-        forma.corpo = corpo;
-        corpo.orient = 0;
-        corpo.orientPrev = 0;
-        corpo.densidade = 0.5;
-        corpo.restituicao = 0.1;
-        corpo.friccaoEstatica = 0.5;
-        corpo.friccaoDinamica = 0.3;
-        corpo.friccaoAr = 0.5;
-        corpo.velAng = 0;
-        corpo.torque = 0;
-        corpo.qtdContatos = 0;
-        Object.assign(corpo, op);
-        
-        corpo.forma._calcularMassa()
-        return corpo;
-    }
-
-
-
-    
-
-    pos(x, y) {
-        this.posV.x = x;
-        this.posV.y = y;
-    }
-    
-    desenhar(c, op) {
-        op = op || {};
-        this.forma.desenhar(this.posV, c, op);
-    }
-
-    set orient(a) { this.forma.orient = a; }
-    get orient() { return this.forma.orient; }
-
-    get estatico() { return this.massaInv == 0; }
-
-    adicForca(f) {
-        this.acelV = this.acelV.adic(f.mult(this.massaInv));
-    }
-
-    adicionarAceleracao(a) {
-        if (this.estatico) return;
-        this.acelV = this.acelV.adic(a);
-    }
-
-    atualizar() {
-        if (this.estatico) return;
-
-        let friccaoAr = 1 - this.friccaoAr;
-        let posVprev = this.posV.sub(this.posVprev);
-
-        this.velV = posVprev.mult(friccaoAr).adic(this.acelV.mult(this.massaInv))
-        
-        this.posVprev = this.posV.copia;
-        this.posV = this.posV.adic(this.velV);
-
-        this.velAng = ((this.orient - this.orientPrev) * friccaoAr) + (this.torque * this.inerciaInv);
-        this.orientPrev = this.orient;
-        //this.orient += this.velAng;
-        
-    }
-
-    aplicarImpulso() {
-        this.qtdContatos = 0;
-
-        let _positionWarming = 0.8;
-
-        if (this.posVimpulso.x !== 0 || this.posVimpulso.y !== 0) {
-
-            this.posVprev = this.posVprev.adic(this.posVimpulso)
-
-            if (this.posVimpulso.pEsc(this.velV)<0) {
-                this.posVimpulso = Vetor2d.criar();
-            } else {
-                this.posVimpulso = this.posVimpulso.mult(_positionWarming);
-            }
+    constructor(pos, vertices, op) {
+        this.id = Mundo2d.obterCorpoId();
+        this.nome = `corpo${this.id}`;
+        this.pos = new Vetor2d(0, 0);
+        if (pos instanceof Vetor2d) {
+            this.pos = pos.copia;
+        } else if (pos instanceof Array) {
+            this.pos = new Vetor2d(pos[0], pos[1]);
         }
+        let vertices = Vetor2d.criarArray(vertices);
+
+        this.vertices = [];
+        this.eixos = [];
+        this.bordas = { min: new Vetor2d(), max: new Vetor2d() };
+        
+        this.ang = 0;
+        this.vel = new Vetor2d();
+        this.forca = new Vetor2d();
+        this.velAng = 0;
+        this.pre = {
+            pos: new Vetor2d(),
+            ang: 0
+        };
+        this.imp = {
+            pos: new Vetor2d()
+        };
+        this.densidade = 0.001;
+        this.rest = 0;
+        this.fric = 0.1;
+        this.fricEst = 0.5;
+        this.fricAr = 0.01;
+        this.desp = 0.05;
+        this.tempoEscala = 1;
+        
+        Object.assign(this, op);
+        this._montar(vertices);
     }
 
-    resetar() {
-        this.acelV = this.acelV.mult(0);
-        this.torque = 0
-        this.penetrado = false;
+    static obterVerticeId() {
+        this.ultimoVerticeId = this.ultimoVerticeId || 0;
+        this.ultimoVerticeId += 1;
+        return `${this.id}_${this.ultimoVerticeId}`;
     }
+
+    _montar(vertices) {
+        this._definirVertices(vertices);
+        this._definirMassa();
+    }
+
+    _definirVertices(vertices) {
+        if (vertices.length < 3) {
+            this.vertices = vertices;
+            return;
+        }
+        let verticeDireita = vertices.reduce((p,c) => {
+            if (!p || c.x > p.x) return c;
+            else if (c.x == p.x && c.y < c.y) return c;
+            return p;
+        });
+
+        
+        let ordernados = [ verticeDireita ];
+        let linhaBase = Vetor2d.criarAng(0, 1).norm();
+        
+        
+        while(true) {
+            let melhorVertice;
+            let verticeBase = ordernados.length ? ordernados[ordernados.length-1] : linhaBase;
+            
+            for(let vertice of vertices) {
+                if (vertice == verticeBase) continue;
+                if (!melhorVertice ) { melhorVertice = vertice; continue }
+                let v1 = melhorVertice.sub(verticeBase);
+                let v2 = vertice.sub(verticeBase);
+                let pVet = v1.pVet(v2);
+                if (pVet<0 || (pVet==0 && v2.magQ > v2.magQ)) {
+                    melhorVertice = vertice;
+                }
+            }
+            if (melhorVertice == verticeDireita) break;
+            ordernados.push(melhorVertice);
+        }
+
+        this.vertices = ordernados.map(_ => new Vertice2d(this, _.adic(this.pos)));
+        this.eixos = Eixo.criar(this.vertices);
+        this.bordas = new Borda2d(this.vertices);
+
+    }
+
+    _definirMassa() {
+        let inercia = 0;
+        let area = 0
+        let k = 1/3;
+        let centro = Vetor2d.criarPos(0, 0);
+        for(let i = 0; i< this.vsQtd; i++) {
+            let v1 = this.vs[i];
+            let v2 = this.vs[(i+1)%this.vsQtd];
+            let d = v1.pVet(v2);
+            let a = d / 2;
+            area += a;
+            let peso = a * k;
+            centro = centro.adic(v1.mult(peso))
+                .adic(v2.mult(peso));
+        
+            let x = v1.x * v1.x + v2.x * v1.x + v2.x * v2.x;
+            let y = v1.y * v1.y + v2.y * v1.y + v2.y * v2.y;
+            inercia += (0.25 * k * d) * (x+y);
+        }
+
+        centro = centro.mult(1/area);
+
+        this.vertices = this.vertices.map(_ => _.sub(centro));
+        this.bordas.min = this.bordas.min.sub(dif);
+        this.bordas.max = this.bordas.max.sub(dif);
+
+        this.massa = this.densidade * area;
+        this.massaInv = (this.massa != 0) ? 1 / this.massa : 0;
+        this.inercia = inercia * this.densidade;
+        this.inerciaInv = (this.inercia != 0) ? 1 / this.inercia : 0;
+    }
+
+    setPos(pos) {
+        this.pre.pos = this.pos.copia;
+        this.pos = pos;
+        let dif = this.pos.sub(this.pre.pos);
+        this.vertices = this.vertices.map(_ => _.adic(dif));
+        this.bordas.min = this.bordas.min.adic(dif);
+        this.bordas.max = this.bordas.max.adic(dif);
+    }
+
+    setVel(vel) {
+        this.vel = vel.copia;
+        this.pre.pos = this.pos.sub(this.vel);
+    }
+
+    setAng(ang) {
+        this.pre.ang = this.ang;
+        this.ang = ang;
+        let dif = this.ang - this.pre.ang;
+        this.eixos = this.eixos.map(_ => _.rotR(dif));
+        this.vertices = this.vertices.map(_ => _.sub(this.pos).rotR(dif).adic(this.pos));
+        this.bordas = new Borda2d(this.vertices);
+    }
+
+    setAngVel(vel) {
+        this.pre.ang = this.ang - vel;
+        this.velAng = vel;
+    }
+
+    atualizar(delta, tempoEscala, correcao) {
+        var deltaQuadrado = Math.pow(delta * tempoEscala * this.tempoEscala, 2);
+
+        let fricAr = 1 - this.fricAr * tempoEscala * this.tempoEscala;
+        let preVel = this.pos.sub(this.pre.pos);
+
+        let vel = preVel.mult(fricAr*correcao).adic(this.acel);
+
+        this.setVel(vel);
+        this.setPos(this.pos.adic(vel));
+
+        let angVel = ((this.ang - this.pre.ang) * fricAr * correcao) + (this.torque * this.inerciaInv) * deltaQuadrado;
+
+        this.setAngVel(angVel);
+        this.setAng(this.ang.adic(angVel));
+
+    }
+
+
 }

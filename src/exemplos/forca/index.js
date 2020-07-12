@@ -9,7 +9,7 @@ let canvas = Canvas2d.criar({
     h: window.innerHeight
 });
 
-let mundo = Mundo2d.criar(0, 0, canvas.w, canvas.h, {gravidade: 0.1});
+let mundo = Mundo2d.criar(0, 0, canvas.w, canvas.h, {gravidade: 3});
 
 
 let quadrado = [[0,0],[200,0],[200,200],[0,200]];

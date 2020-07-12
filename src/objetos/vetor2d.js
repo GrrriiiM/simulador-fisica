@@ -43,14 +43,32 @@ export class Vetor2d {
         return v1;
     }
 
+    static criarArray(x) {
+        let vs = [];
+        if (x instanceof Array) {
+            if (x[0] instanceof Number && x[1] instanceof Number) {
+                vs.push(new Vetor2d(x[0], x[1]));
+            } else {
+                for(let v of x) {
+                    if (v instanceof Array) {
+                        vs.push(new Vetor2d(v[0], v[1]));
+                    }
+                }
+            }
+        } else if(x instanceof Number) {
+            vs.push(new Vetor2d(x, x));
+        }
+        return vs;
+    }
+
     //sin = oposto / hipotenusa
     //cos = adjacente / hipotenusa
     //toa = oposto / adjacente
     //sohcahtoa
 
-    constructor() {
-        this.x = 0;
-        this.y = 0;
+    constructor(x, y) {
+        this.x = x || 0;
+        this.y = y || 0;
     }
 
     static magQ(v) { return Math.pow(v.x, 2) + Math.pow(v.y, 2); }

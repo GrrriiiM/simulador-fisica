@@ -10,7 +10,7 @@ let canvas = Canvas2d.criar({
     h: window.innerHeight
 });
 
-let mundo = Mundo2d.criar(0, 0, canvas.w, canvas.h, { paredes: true, gravidade: 0.4 });
+let mundo = Mundo2d.criar(0, 0, canvas.w, canvas.h, { paredes: true, gravidade: 3 });
 
 
 // mundo.adic(Vetor2d.criarPos(100, canvas.h-30), Circulo2d.criar(30), Corpo2d.elastico());

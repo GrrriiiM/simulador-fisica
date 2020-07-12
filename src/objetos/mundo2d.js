@@ -1,146 +1,45 @@
-import { Vetor2d } from "./vetor2d.js";
-import { Corpo2d } from "./corpo2d.js";
-import { Colisao2d } from "./colisao2d.js";
-import { Poligono2d } from "./poligono2d.js";
+import { Vetor2d } from "./vetor2d";
 
 export class Mundo2d {
-    static criar(x, y, w, h, op) {
-        let mundo = new Mundo2d();
-        mundo.posV = Vetor2d.criarPos(x, y);
-        mundo.w = w;
-        mundo.h = h;
-        mundo.corpos = [];
-        mundo.colisoes = [];
-        Object.assign(mundo, op);
-        if (mundo.paredes instanceof Array) {
-            mundo._adicParedes(...mundo.paredes)
-        } else if(mundo.paredes) {
-            mundo._adicParedes(true, true, true, true);
-        }
-        if (mundo.gravidade) {
-            if (typeof(mundo.gravidade) == typeof(0)) {
-                mundo.gravidade = Vetor2d.criarAng(90, mundo.gravidade);
-            }
-        }
-        return mundo;
+    static obterCorpoId() {
+        Mundo2d.ultimoCorpoId = Mundo2d.ultimoCorpoId || 0;
+        Mundo2d.ultimoCorpoId += 1;
+        return Mundo2d.ultimoCorpoId;
     }
 
-    adic(posV, forma, op) {
-        let corpo = Corpo2d.criar(posV, forma, op);
+    constructor(op) {
+        this.largura = 500;
+        this.altura = 500;
+        this.posX = 0;
+        this.posY = 0;
+        this.paredes = [ true, true, true, true];
+        Object.assign(this, op);
+        this.corpos = [];
+        if (this.paredes instanceof Boolean) {
+            this.paredes = [ this.paredes, this.paredes, this.paredes, this.paredes ];
+        }
+
+        this._criarParedes(...this.paredes);
+    }
+
+    adicCorpo(pos, vertices, op) {
+        let corpo  = new corpo(pos, vertices, op);
         this.corpos.push(corpo);
         return corpo;
     }
 
-    _adicParedes(r,b,l,t) {
-        if (r) this.adic(Vetor2d.criarPos(this.w+249, this.h/2), Poligono2d.criarRetangulo(500, this.h), Corpo2d.estatico({ corrigirDeslocamento: false }));
-        if (b) this.adic(Vetor2d.criarPos(this.w/2, this.h+248), Poligono2d.criarRetangulo(this.w, 500), Corpo2d.estatico({ corrigirDeslocamento: false }));
-        if (l) this.adic(Vetor2d.criarPos(-249, this.h/2), Poligono2d.criarRetangulo(500, this.h), Corpo2d.estatico({ corrigirDeslocamento: false }));
-        if (t) this.adic(Vetor2d.criarPos(this.w/2, -249), Poligono2d.criarRetangulo(this.w, 500, { corrigirDeslocamento: false }), Corpo2d.estatico());
-        
-    }
-
-    _reset() {
-        this.colisoes = [];
-    }
-
-    
-
-    frame() {
-        this.aplicarGravidade();
-        this.atualizarCorpos();
-
-        this.detectarColisoes();
-
-        this.prepararColisoes();
-
-        this.solucionarColisoes();
-
-        this.aplicarImpulso();
-
-        // this.prepararVelocidade();
-
-        // this.resolverVelocidade();
-
-        this.resetar();
-    }
-
-    aplicarGravidade() {
-        if (this.gravidade) {
-            for(let corpo of this.corpos) {
-                if (!corpo.estatico) {
-                    corpo.adicionarAceleracao(this.gravidade.div(corpo.massaInv));
-                }
-            }
+    _criarParedes(direita, baixo, esquerda, cima) {
+        if (esquerda) {
+            this.adicCorpo([ 25, this.altura/2 ], [50, this.altura], { massaInv: 0 });
         }
-    }
-
-    atualizarCorpos() {
-        for(let corpo of this.corpos) {
-            corpo.atualizar();
+        if (direita) {
+            this.adicCorpo([ this.largura - 25 , this.altura/2], [50, this.altura], { massaInv: 0 });
         }
-    }
-
-    detectarColisoes() {
-        let colisoes = [];
-        for(let i = 0; i<this.corpos.length; i++) {
-            let corpo1 = this.corpos[i];
-            for(let j = i+1;j<this.corpos.length;j++) {
-                let corpo2 = this.corpos[j];
-                if (corpo1.massaInv > 0 || corpo2.massaInv > 0) {
-                    let colisao = Colisao2d.criar(this, corpo1, corpo2);
-                    if (colisao.colidiu) {
-                        colisoes.push(colisao);
-                    }
-                }
-            }
+        if (cima) {
+            this.adicCorpo([ this.largura / 2, 25 ], [this.largura, 50], { massaInv: 0 });
         }
-        this.colisoes = colisoes;
-    }
-
-    prepararColisoes() {
-        for(let colisao of this.colisoes) {
-            colisao.preparar();   
-        }
-    }
-
-    solucionarColisoes() {
-        for(let i=0; i<1; i++) {
-            for(let colisao of this.colisoes) {
-                colisao.solucionar();   
-            }
-        }
-    }
-
-    aplicarImpulso() {
-        for(let corpo of this.corpos) {
-            corpo.aplicarImpulso();
-        }
-    }
-
-    prepararVelocidade() {
-        for(let colisao of this.colisoes) {
-            colisao.prepararVelocidade();   
-        }
-    }
-
-    resolverVelocidade() {
-        for(let i=0; i<10; i++) {
-            for(let colisao of this.colisoes) {
-                colisao.resolverVelocidade();   
-            }
-        }
-    }
-    
-
-    desenhar(c, op) {
-        for(let corpo of this.corpos) {
-            corpo.desenhar(c, op);
-        }
-    }
-
-    resetar() {
-        for(let corpo of this.corpos) {
-            corpo.resetar();
+        if (baixo) {
+            this.adicCorpo([ this.largura / 2, this.altura - 25 ], [50, this.altura], { massaInv: 0 });
         }
     }
 }

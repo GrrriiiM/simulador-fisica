@@ -30,9 +30,10 @@ let poligono = Poligono2d.criarRandom(50, 5, 100).vs;
 
 let forma = poligono;
 
-let corpo1 = mundo.adic(Vetor2d.criarPos(500, 500), Poligono2d.criarQuadrado(50), Corpo2d.rocha());
+let corpo1 = mundo.adic(Vetor2d.criarPos(500, 500), Poligono2d.criarQuadrado(50), Corpo2d.estatico({ orient: 0 }));
 
-mundo.adic(Vetor2d.criarPos(700, 500), Poligono2d.criarQuadrado(50), Corpo2d.rocha());
+mundo.adic(Vetor2d.criarPos(700, 500), Poligono2d.criarQuadrado(50), Corpo2d.rocha({ orient: 45 }));
+mundo.adic(Vetor2d.criarPos(400, 500), Poligono2d.criarRandom(50, 5, 100), Corpo2d.rocha());
 
 
 // mundo.adic(Vetor2d.criarPos(-40, canvas.h/2), Poligono2d.criar([[0, 0], [100,0], [0, canvas.h], [100, canvas.h]]), Corpo2d.estatico());
