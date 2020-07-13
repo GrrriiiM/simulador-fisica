@@ -1,49 +1,57 @@
 import { Mundo2d } from "./mundo2d.js";
 import { Vertice2d } from "./vertice2d.js";
 import { Vetor2d } from "./vetor2d.js";
-import { Eixo } from "./eixo.js";
+import { Eixo } from "./eixo2d.js";
 import { Borda2d } from "./borda2d.js";
 
 export class Corpo2d {
     constructor(pos, vertices, op) {
         this.id = Mundo2d.obterCorpoId();
         this.nome = `corpo${this.id}`;
-        this.pos = new Vetor2d(0, 0);
+        this.posicao = new Vetor2d(0, 0);
         if (pos instanceof Vetor2d) {
-            this.pos = pos.copia;
+            this.posicao = pos.copia;
         } else if (pos instanceof Array) {
-            this.pos = new Vetor2d(pos[0], pos[1]);
+            this.posicao = new Vetor2d(pos[0], pos[1]);
         }
-        let vertices = Vetor2d.criarArray(vertices);
 
-        this.vertices = [];
+        let vs = Vetor2d.criarArray(vertices);
         this.eixos = [];
         this.bordas = { min: new Vetor2d(), max: new Vetor2d() };
         
-        this.ang = 0;
-        this.vel = new Vetor2d();
+        this.angulo = 0;
+        this.velocidade = new Vetor2d();
         this.forca = new Vetor2d();
-        this.velAng = 0;
+        this.velocidadeAngular = 0;
+        this.aceleracao = new Vetor2d();
         this.pre = {
-            pos: new Vetor2d(),
-            ang: 0
+            posicao: this.posicao,
+            angulo: this.angulo
         };
-        this.imp = {
+        this.impulso = {
             pos: new Vetor2d()
         };
+        this.torque = 0;
+        this.massa = 0;
+        this.massaInv = 0;
+        this.inercia = 0;
+        this.inerciaInv = 0;
         this.densidade = 0.001;
-        this.rest = 0;
-        this.fric = 0.1;
-        this.fricEst = 0.5;
-        this.fricAr = 0.01;
-        this.desp = 0.05;
+        this.restituicao = 0;
+        this.friccao = 0.1;
+        this.friccaoEstatica = 0.5;
+        this.friccaoAr = 0.01;
+        this.despejo = 0.05;
         this.tempoEscala = 1;
+        this.areas = [];
         
         Object.assign(this, op);
-        this._montar(vertices);
+        this._montar(vs);
     }
 
-    static obterVerticeId() {
+    get estatico() { return this.massaInv == 0; }
+
+    obterVerticeId() {
         this.ultimoVerticeId = this.ultimoVerticeId || 0;
         this.ultimoVerticeId += 1;
         return `${this.id}_${this.ultimoVerticeId}`;
@@ -88,9 +96,9 @@ export class Corpo2d {
             ordernados.push(melhorVertice);
         }
 
-        this.vertices = ordernados.map(_ => new Vertice2d(this, _.adic(this.pos)));
+        this.vertices = ordernados.map(_ => new Vertice2d(this, _.adic(this.posicao)));
         this.eixos = Eixo.criar(this.vertices);
-        this.bordas = new Borda2d(this.vertices);
+        this.bordas = Borda2d.criarComVertices(this.vertices);
 
     }
 
@@ -99,9 +107,9 @@ export class Corpo2d {
         let area = 0
         let k = 1/3;
         let centro = Vetor2d.criarPos(0, 0);
-        for(let i = 0; i< this.vsQtd; i++) {
-            let v1 = this.vs[i];
-            let v2 = this.vs[(i+1)%this.vsQtd];
+        for(let i = 0; i< this.vertices.length; i++) {
+            let v1 = this.vertices[i].v;
+            let v2 = this.vertices[(i+1)%this.vertices.length].v;
             let d = v1.pVet(v2);
             let a = d / 2;
             area += a;
@@ -116,9 +124,12 @@ export class Corpo2d {
 
         centro = centro.mult(1/area);
 
-        this.vertices = this.vertices.map(_ => _.sub(centro));
-        this.bordas.min = this.bordas.min.sub(dif);
-        this.bordas.max = this.bordas.max.sub(dif);
+        this.vertices = this.vertices.map(_ => {
+            _.v = _.v.sub(centro.sub(this.posicao));
+            return _;
+        });
+        this.bordas.min = this.bordas.min.sub(centro.sub(this.posicao));
+        this.bordas.max = this.bordas.max.sub(centro.sub(this.posicao));
 
         this.massa = this.densidade * area;
         this.massaInv = (this.massa != 0) ? 1 / this.massa : 0;
@@ -126,51 +137,88 @@ export class Corpo2d {
         this.inerciaInv = (this.inercia != 0) ? 1 / this.inercia : 0;
     }
 
-    setPos(pos) {
-        this.pre.pos = this.pos.copia;
-        this.pos = pos;
-        let dif = this.pos.sub(this.pre.pos);
-        this.vertices = this.vertices.map(_ => _.adic(dif));
+    definirPosicao(pos) {
+        this.pre.posicao = this.posicao.copia;
+        this.posicao = pos;
+        let dif = this.posicao.sub(this.pre.posicao);
+        this.vertices = this.vertices.map(_ => {
+            _.v = _.v.adic(dif);
+            return _;
+        });
         this.bordas.min = this.bordas.min.adic(dif);
         this.bordas.max = this.bordas.max.adic(dif);
     }
 
-    setVel(vel) {
-        this.vel = vel.copia;
-        this.pre.pos = this.pos.sub(this.vel);
+    definirVelocidade(vel) {
+        this.velocidade = vel.copia;
+        this.pre.posicao = this.posicao.sub(this.velocidade);
     }
 
-    setAng(ang) {
-        this.pre.ang = this.ang;
-        this.ang = ang;
-        let dif = this.ang - this.pre.ang;
-        this.eixos = this.eixos.map(_ => _.rotR(dif));
-        this.vertices = this.vertices.map(_ => _.sub(this.pos).rotR(dif).adic(this.pos));
-        this.bordas = new Borda2d(this.vertices);
+    definirAngulo(ang) {
+        this.pre.angulo = this.angulo;
+        this.angulo = ang;
+        let dif = this.angulo - this.pre.angulo;
+        this.eixos = this.eixos.map(_ =>{
+            _.v = _.v.rotR(dif);
+            return _;
+        });
+        this.vertices = this.vertices = this.vertices.map(_ => {
+            _.v = _.v.sub(this.posicao).rotR(dif).adic(this.posicao);
+            return _;
+        });
+        this.bordas.min = this.bordas.min.sub(this.posicao).rotR(dif).adic(this.posicao);
+        this.bordas.max = this.bordas.max.sub(this.posicao).rotR(dif).adic(this.posicao);
     }
 
-    setAngVel(vel) {
-        this.pre.ang = this.ang - vel;
-        this.velAng = vel;
+    definirVelocidadeAngular(vel) {
+        this.pre.angulo = this.angulo - vel;
+        this.velocidadeAngular = vel;
+    }
+
+    adicionarForma(forca) {
+        this.aceleracao = this.aceleracao.adic(forma.mult(this.massaInv));
     }
 
     atualizar(delta, tempoEscala, correcao) {
         var deltaQuadrado = Math.pow(delta * tempoEscala * this.tempoEscala, 2);
 
-        let fricAr = 1 - this.fricAr * tempoEscala * this.tempoEscala;
-        let preVel = this.pos.sub(this.pre.pos);
+        let fricAr = 1 - this.friccaoAr * tempoEscala * this.tempoEscala;
+        let preVel = this.posicao.sub(this.pre.posicao);
 
-        let vel = preVel.mult(fricAr*correcao).adic(this.acel);
+        let vel = preVel.mult(fricAr*correcao).adic(this.aceleracao);
 
-        this.setVel(vel);
-        this.setPos(this.pos.adic(vel));
+        this.definirVelocidade(vel);
+        this.definirPosicao(this.posicao.adic(vel));
 
-        let angVel = ((this.ang - this.pre.ang) * fricAr * correcao) + (this.torque * this.inerciaInv) * deltaQuadrado;
+        let velAng = ((this.angulo - this.pre.angulo) * fricAr * correcao) + (this.torque * this.inerciaInv) * deltaQuadrado;
 
-        this.setAngVel(angVel);
-        this.setAng(this.ang.adic(angVel));
+        this.definirVelocidadeAngular(velAng);
+        this.definirAngulo(this.angulo + velAng);
+    }
 
+    reiniciar() {
+        this.aceleracao = new Vetor2d();
+        this.torque = 0;
     }
 
 
+    obterPathD() {
+        let path = {
+            posicao: "",
+            vertices: "",
+            eixos: [],
+            borda: ""
+        };
+        path.posicao = `
+            M${this.posicao.x-2} ${this.posicao.y-2}
+            L${this.posicao.x-2} ${this.posicao.y+2}
+            L${this.posicao.x+2} ${this.posicao.y+2}
+            L${this.posicao.x+2} ${this.posicao.y-2}`;
+        for(let [ i, v ] of this.vertices.map(_ => _.v).entries()) {
+            path.vertices += i==0 ? "M" : "L";
+            path.vertices += `${v.x} ${v.y} `;
+        }
+        path.vertices += " Z";
+        return path;
+    }
 }

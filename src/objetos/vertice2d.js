@@ -1,9 +1,8 @@
-import { Mundo2d } from "./mundo2d";
-import { Vetor2d } from "./vetor2d";
+import { Mundo2d } from "./mundo2d.js";
 
 export class Vertice2d {
     constructor(corpo, v) {
-        this.id = Mundo2d.obterCorpoId();
+        this.id = corpo.obterVerticeId();
         this.v = v;
     }
 

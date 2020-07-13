@@ -33,11 +33,12 @@ export class Canvas2d {
         this.tempoTotal = 0
 
         if (typeof window !== 'undefined') {
-            this.requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame
-                || window.mozRequestAnimationFrame || window.msRequestAnimationFrame;
+            if (window.requestAnimationFrame) this.requisitarFrame = (render) => window.requestAnimationFrame(render)
+            // this.requisitarFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame
+            //     || window.mozRequestAnimationFrame || window.msRequestAnimationFrame;
     
-            this.cancelAnimationFrame = window.cancelAnimationFrame || window.mozCancelAnimationFrame 
-                || window.webkitCancelAnimationFrame || window.msCancelAnimationFrame;
+            // this.cancelAnimationFrame = window.cancelAnimationFrame || window.mozCancelAnimationFrame 
+            //     || window.webkitCancelAnimationFrame || window.msCancelAnimationFrame;
         }
     }
 
@@ -69,18 +70,10 @@ export class Canvas2d {
 
 
     frame(tempo) {
-        let delta = 1000/(tempo ? tempo : 1000);
-        this.ctx.fillStyle = this.bc;
-        this.ctx.fillRect(0, 0, this.w, this.h);
+        this.delta = 1000/(this.tempoFrame ? this.tempoFrame : 1000);
         
-        let fpsText = `fps: ${Math.round(delta)}`;
-        this.ctx.font = "18px Arial";
-        this.ctx.fillStyle = "#FFFFFF";
-        let fpsMeasureText = this.ctx.measureText(fpsText).width;
-        this.ctx.fillText(fpsText, this.w - fpsMeasureText, this.h - 10);
-        this.desenharLog();
-        if (this.loop) this.loop(this, delta);
-        return delta;
+        if (this.loop) this.loop(this, this.delta);
+        return this.delta;
     }
 
     iniciarLoop() {
@@ -92,8 +85,8 @@ export class Canvas2d {
         if (this.animando) {
             this.tempoFrame = tempo - this.tempoTotal;
             this.tempoTotal = tempo;
-            this.frame(this.tempoFrame);
-            this.frameRequestId = window.requestAnimationFrame(this.render.bind(this));
+            this.frame();
+            this.frameRequestId = this.requisitarFrame(this.render.bind(this));
         }
     }
 
@@ -101,54 +94,6 @@ export class Canvas2d {
         this.animando = false;
     }
 
-    linha(x1, y1, x2, y2, op) {
-        let o = {
-            c: "#FFFFFF",
-            l: 1
-        }
-        Object.keys(op).forEach(_ => o[_]=op[_]);
-        this.ctx.beginPath();
-        this.ctx.strokeStyle = o.c;
-        this.ctx.lineWidth = o.l;
-        this.ctx.moveTo(x1, y1);
-        this.ctx.lineTo(x2, y2);
-        this.ctx.stroke();
-    }
-
-    linhas(x, y, vs, op) {
-        let o = {
-            c: "#FFFFFF",
-            l: 1
-        }
-        ctx.save();
-        Object.assign(o, op);
-        ctx.beginPath();
-        ctx.strokeStyle = o.c;
-        ctx.lineWidth = o.l;
-        ctx.moveTo(x, y);
-        for(let v of vs) {
-            ctx.lineTo(v.x, v.y);
-        }
-        ctx.stroke();
-        ctx.restore();
-    }
-
-    ponto(x, y, r, c) {
-        this.ctx.save();
-        this.ctx.beginPath();
-        this.ctx.arc(x, y, r || 5, 0, 2 * Math.PI, true);
-        this.ctx.fillStyle = c || "white";
-        this.ctx.fill();
-        this.ctx.restore();
-    }
-
-    pontos(ps) {
-        ps.forEach(_ => this.ponto(_.x, _.y, _.r, _.c))
-    }
-    
-    log(t) {
-        this._logs.push(t);
-    }
 
     desenharLog() {
         for(let i=0;i<this._logs.length;i++) {
@@ -157,5 +102,45 @@ export class Canvas2d {
             this.ctx.fillText(this._logs[i], 10, 20 * (i + 1));
         }
         this._logs = [];
+    }
+
+    desenhar(simuladorPathD) {
+        this._desenharMundo(simuladorPathD.mundo);
+        simuladorPathD.areas.forEach(_ => this._desenharArea(_));
+        simuladorPathD.corpos.forEach(_ => {
+            this._desenharCorpoVertices(_.vertices);
+            this._desenharCorpoPosicao(_.posicao);
+        });
+        this._desenharFPS(this.delta);
+    }
+
+    _desenharMundo(pathD) {
+        this.ctx.fillStyle = "black";
+        this.ctx.fill(new Path2D(pathD));
+    }
+
+    _desenharArea(pathD) {
+        this.ctx.strokeStyle = "red";
+        this.ctx.globalAlpha = 0.4;
+        this.ctx.stroke(new Path2D(pathD));
+        this.ctx.globalAlpha = 1;
+    }
+
+    _desenharCorpoVertices(pathD) {
+        this.ctx.strokeStyle = "white";
+        this.ctx.stroke(new Path2D(pathD));
+    }
+
+    _desenharCorpoPosicao(pathD) {
+        this.ctx.fillStyle = "blue";
+        this.ctx.fill(new Path2D(pathD));
+    }
+
+    _desenharFPS(delta) {
+        let fpsText = `fps: ${Math.round(delta)}`;
+        this.ctx.font = "18px Arial";
+        this.ctx.fillStyle = "#FFFFFF";
+        let fpsMeasureText = this.ctx.measureText(fpsText).width;
+        this.ctx.fillText(fpsText, this.w - fpsMeasureText, this.h - 10);
     }
 }

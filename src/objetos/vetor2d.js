@@ -1,5 +1,3 @@
-import { Matriz2d } from "./matriz2d.js";
-
 export class Vetor2d {
     static criarPos(x, y) {
         let v = new Vetor2d();
@@ -46,7 +44,10 @@ export class Vetor2d {
     static criarArray(x) {
         let vs = [];
         if (x instanceof Array) {
-            if (x[0] instanceof Number && x[1] instanceof Number) {
+            if (!Number.isNaN(x[0]) && !Number.isNaN(x[1])) {
+                vs.push(new Vetor2d(0, 0));
+                vs.push(new Vetor2d(0, x[1]));
+                vs.push(new Vetor2d(x[0], 0));
                 vs.push(new Vetor2d(x[0], x[1]));
             } else {
                 for(let v of x) {
@@ -55,8 +56,8 @@ export class Vetor2d {
                     }
                 }
             }
-        } else if(x instanceof Number) {
-            vs.push(new Vetor2d(x, x));
+        } else if(!Number.isNaN(x)) {
+            return this.criarArray([x, x]);
         }
         return vs;
     }
@@ -102,11 +103,6 @@ export class Vetor2d {
         if (n instanceof Vetor2d) {
             v.x *= n.x;
             v.y *= n.y;
-        } else if (n instanceof Matriz2d) {
-            let x = n.m00 * v.x + n.m01 * v.y;
-            let y = n.m10 * v.x + n.m11 * v.y;
-            v.x = x;
-		    v.y = y;
         } else {
             v.x *= n;
             v.y *= n;
